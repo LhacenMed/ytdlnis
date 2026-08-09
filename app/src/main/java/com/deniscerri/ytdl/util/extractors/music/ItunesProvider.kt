@@ -23,9 +23,9 @@ object ItunesProvider : MusicProvider {
     override val id = "itunes"
     override val name = "iTunes"
 
-    override suspend fun search(query: String, limit: Int): List<MusicMetadata> {
+    override suspend fun search(query: String, limit: Int): List<MusicMetadata>? {
         val body = MusicHttp.json("$API/search?term=${MusicHttp.encode(query)}&entity=song&limit=$limit")
-            ?: return emptyList()
+            ?: return null
         return body.arr("results").map { it.asJsonObject.toMetadata() }.filter { it.isUsable }
     }
 

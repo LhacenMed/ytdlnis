@@ -24,7 +24,12 @@ interface MusicProvider {
     /** Brand name, shown when the manual search lets the user aim at one catalogue. */
     val name: String
 
-    suspend fun search(query: String, limit: Int): List<MusicMetadata>
+    /**
+     * The candidates for [query], or null when the catalogue could not be reached at all.
+     * An empty list is an answer, null is the absence of one, and only the second is worth
+     * offering the user a retry for.
+     */
+    suspend fun search(query: String, limit: Int): List<MusicMetadata>?
 
     /**
      * Completes [metadata] with the fields [search] could not carry. Catalogues that already

@@ -38,6 +38,7 @@ import com.deniscerri.ytdl.database.viewmodel.CommandTemplateViewModel
 import com.deniscerri.ytdl.database.viewmodel.DownloadCardViewModel
 import com.deniscerri.ytdl.database.viewmodel.DownloadViewModel
 import com.deniscerri.ytdl.database.viewmodel.HistoryViewModel
+import com.deniscerri.ytdl.database.viewmodel.MusicViewModel
 import com.deniscerri.ytdl.database.viewmodel.ResultViewModel
 import com.deniscerri.ytdl.receiver.ShareActivity
 import com.deniscerri.ytdl.ui.BaseActivity
@@ -80,8 +81,35 @@ class DownloadBottomSheetDialog : BottomSheetDialogFragment() {
     private lateinit var shimmerLoading :ShimmerFrameLayout
     private lateinit var title : View
     private lateinit var shimmerLoadingSubtitle : ShimmerFrameLayout
-    private lateinit var subtitle : View
+    private lateinit var subtitle : TextView
+    private lateinit var loadingSubtitle : TextView
+    private lateinit var musicBtn : Button
+    private lateinit var downloadBtn : Button
+    private lateinit var refreshBtn : Button
     private lateinit var parentActivity: BaseActivity
+    private lateinit var musicViewModel: MusicViewModel
+
+    /**
+     * What the card is busy with, which is the whole of what its subtitle says and whether the
+     * download button is a download button at all. Video info comes first: nothing else about
+     * the item is knowable until it lands.
+     */
+    private enum class CardStatus { FetchingVideo, VideoFailed, SearchingSong, SongFailed, Ready }
+
+    /**
+     * How the video info fetch ended, owned by the card itself.
+     *
+     * It is deliberately not read back off [ResultViewModel.updateResultData]: that flow is an
+     * event channel, emptied again as soon as the result is consumed, so asking it afterwards
+     * says "nothing here" for a fetch that in fact succeeded. The outcome is recorded once, by
+     * whichever event settles it, and every reader agrees from then on.
+     *
+     * [Running] is marked where the fetch is started rather than observed from it, since a fetch
+     * can finish before the collectors exist and a state flow replays only where it ended up.
+     */
+    private enum class VideoFetch { None, Running, Loaded, Failed }
+
+    private var videoFetch = VideoFetch.None
 
 
     private lateinit var result: ResultItem
@@ -98,6 +126,7 @@ class DownloadBottomSheetDialog : BottomSheetDialogFragment() {
         resultViewModel = ViewModelProvider(requireActivity())[ResultViewModel::class.java]
         commandTemplateViewModel = ViewModelProvider(requireActivity())[CommandTemplateViewModel::class.java]
         downloadCardViewModel = ViewModelProvider(requireActivity())[DownloadCardViewModel::class.java]
+        musicViewModel = ViewModelProvider(requireActivity())[MusicViewModel::class.java]
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireContext())
 
         val res = downloadCardViewModel.resultItem
@@ -113,7 +142,10 @@ class DownloadBottomSheetDialog : BottomSheetDialogFragment() {
         }
         result = res
         currentDownloadItem = dwl
-        incognito = currentDownloadItem?.incognito ?: sharedPreferences.getBoolean("incognito", false)
+        //an item being reopened keeps its own setting, a fresh card reopens on the last one used
+        incognito = currentDownloadItem?.incognito ?: LastUsedDownloadSettings.lastIncognito(
+            sharedPreferences, sharedPreferences.getBoolean("incognito", false)
+        )
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -153,6 +185,7 @@ class DownloadBottomSheetDialog : BottomSheetDialogFragment() {
         title = view.findViewById(R.id.bottom_sheet_title)
         shimmerLoadingSubtitle = view.findViewById(R.id.shimmer_loading_subtitle)
         subtitle = view.findViewById(R.id.bottom_sheet_subtitle)
+        loadingSubtitle = view.findViewById(R.id.bottom_sheet_loading_subtitle)
 
         shimmerLoading.setOnClickListener {
             lifecycleScope.launch {
@@ -275,6 +308,7 @@ class DownloadBottomSheetDialog : BottomSheetDialogFragment() {
         viewPager2.registerOnPageChangeCallback(object: ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 tabLayout.selectTab(tabLayout.getTabAt(position))
+                showMusicButtonFor(position)
                 runCatching {
                     fragmentAdapter.updateWhenSwitching(viewPager2.currentItem)
                 }
@@ -291,7 +325,19 @@ class DownloadBottomSheetDialog : BottomSheetDialogFragment() {
         }else{
             View.GONE
         }
-        val download = view.findViewById<Button>(R.id.bottomsheet_download_button)
+        downloadBtn = view.findViewById(R.id.bottomsheet_download_button)
+        refreshBtn = view.findViewById(R.id.bottomsheet_refresh_button)
+        musicBtn = view.findViewById(R.id.bottomsheet_music_button)
+        showMusicButtonFor(viewPager2.currentItem)
+        val download = downloadBtn
+
+        //music mode lives here now, so it can be switched without opening the audio tab first
+        musicBtn.setOnClickListener {
+            val enabled = !musicViewModel.enabled.value
+            musicViewModel.setEnabled(enabled)
+            LastUsedDownloadSettings.rememberMusicMode(sharedPreferences, enabled)
+        }
+        refreshBtn.setOnClickListener { retryFailedWork() }
 
 
         scheduleBtn.setOnClickListener{
@@ -437,6 +483,7 @@ class DownloadBottomSheetDialog : BottomSheetDialogFragment() {
 
             incognito = !incognito
             fragmentAdapter.isIncognito = incognito
+            LastUsedDownloadSettings.rememberIncognito(sharedPreferences, incognito)
             val onOff = if (incognito) getString(R.string.ok) else getString(R.string.disabled)
             Snackbar.make(incognitoBtn, "${getString(R.string.incognito)}: $onOff", Snackbar.LENGTH_SHORT).show()
         }
@@ -457,19 +504,23 @@ class DownloadBottomSheetDialog : BottomSheetDialogFragment() {
         lifecycleScope.launch {
             resultViewModel.uiState.collectLatest { res ->
                 if (res.errorMessage != null){
+                    //the dialog and the retry button are the same failure, said twice: it
+                    //explains what broke, the card keeps offering the way out of it
+                    setVideoFetch(VideoFetch.Failed)
                     kotlin.runCatching {
                         UiUtil.handleNoResults(requireActivity(), res.errorMessage!!,
                             url = result.url,
                             continueAnyway =  true,
+                            //both buttons only dismiss the explanation: the fetch still failed,
+                            //so the retry outlives the dialog and only a new one clears it
                             continued = {},
                             cookieFetch = {
                                 val myIntent = Intent(requireContext(), WebViewActivity::class.java)
                                 myIntent.putExtra("url", "https://${URL(result.url).host}")
                                 cookiesFetchedResultLauncher.launch(myIntent)
                             },
-                            closed = {
-                                dismiss()
-                            }
+                            //dismissing the explanation leaves the card, and its retry, standing
+                            closed = {}
                         )
                     }
 
@@ -478,26 +529,31 @@ class DownloadBottomSheetDialog : BottomSheetDialogFragment() {
             }
         }
 
+        /*
+         * The header follows whatever the card is waiting for. Both sources are collected into
+         * the same renderer so the subtitle, the shimmers and the action button can never
+         * describe two different situations at once.
+         */
         lifecycleScope.launch {
-            resultViewModel.updatingData.collectLatest {
-                kotlin.runCatching {
-                    if (it){
-                        title.visibility = View.GONE
-                        subtitle.visibility = View.GONE
-                        shimmerLoading.visibility = View.VISIBLE
-                        shimmerLoadingSubtitle.visibility = View.VISIBLE
-                        shimmerLoading.startShimmer()
-                        shimmerLoadingSubtitle.startShimmer()
-                        (updateItem.parent as LinearLayout).visibility = View.GONE
-                    }else{
-                        title.visibility = View.VISIBLE
-                        subtitle.visibility = View.VISIBLE
-                        shimmerLoading.visibility = View.GONE
-                        shimmerLoadingSubtitle.visibility = View.GONE
-                        shimmerLoading.stopShimmer()
-                        shimmerLoadingSubtitle.stopShimmer()
-                    }
+            resultViewModel.updatingData.collect { updating ->
+                //a fetch already over by the time this collector exists still replays its end,
+                //and one that ended without ever settling an outcome ended by failing
+                when {
+                    updating -> setVideoFetch(VideoFetch.Running)
+                    videoFetch == VideoFetch.Running -> setVideoFetch(VideoFetch.Failed)
+                    else -> renderStatus()
                 }
+            }
+        }
+
+        lifecycleScope.launch {
+            musicViewModel.state.collect { renderStatus() }
+        }
+
+        lifecycleScope.launch {
+            musicViewModel.enabled.collect { enabled ->
+                musicBtn.alpha = if (enabled) 1f else 0.3f
+                renderStatus()
             }
         }
 
@@ -563,12 +619,7 @@ class DownloadBottomSheetDialog : BottomSheetDialogFragment() {
                             val res = result[0]!!
                             fragmentAdapter.setResultItem(res)
 
-                            title.visibility = View.VISIBLE
-                            subtitle.visibility = View.VISIBLE
-                            shimmerLoading.visibility = View.GONE
-                            shimmerLoadingSubtitle.visibility = View.GONE
-                            shimmerLoading.stopShimmer()
-                            shimmerLoadingSubtitle.stopShimmer()
+                            setVideoFetch(VideoFetch.Loaded)
 
                             val usingGenericFormatsOrEmpty = res.formats.isEmpty() || res.formats.any { it.format_note.contains("ytdlnisgeneric") }
                             downloadCardViewModel.setResultItem(res)
@@ -585,6 +636,9 @@ class DownloadBottomSheetDialog : BottomSheetDialogFragment() {
                             }else{
                                 dismiss()
                             }
+                        }else{
+                            //a parse that answered with nothing usable answered with a failure
+                            setVideoFetch(VideoFetch.Failed)
                         }
 
                         resultViewModel.updateResultData.emit(null)
@@ -666,6 +720,96 @@ class DownloadBottomSheetDialog : BottomSheetDialogFragment() {
         return fragmentAdapter.getDownloadItem(selectedTabPosition)
     }
 
+    // ── Header status ──────────────────────────────────────────────────────────
+
+    /**
+     * Video info first: until it lands, nothing else about the item is knowable. The song only
+     * gets to speak for the card once the video info is settled, and never for the tabs that
+     * have no song to look up.
+     */
+    private fun currentStatus(): CardStatus = when (videoFetch) {
+        VideoFetch.Running -> CardStatus.FetchingVideo
+        VideoFetch.Failed -> CardStatus.VideoFailed
+        else -> when {
+            !musicViewModel.enabled.value -> CardStatus.Ready
+            else -> when (musicViewModel.state.value) {
+                is MusicViewModel.SearchState.Waiting,
+                is MusicViewModel.SearchState.Loading -> CardStatus.SearchingSong
+                is MusicViewModel.SearchState.Failed -> CardStatus.SongFailed
+                else -> CardStatus.Ready
+            }
+        }
+    }
+
+    /**
+     * Music mode tags an audio file, so it belongs to the audio tab and to nothing else. A list
+     * of urls has no single song to look up either, so it does not get the button.
+     */
+    private fun showMusicButtonFor(tabPosition: Int) {
+        runCatching {
+            musicBtn.isVisible = tabPosition == AUDIO_TAB && !result.url.endsWith(".txt")
+        }
+    }
+
+    /** Records the outcome and redraws, so no caller has to remember to do both. */
+    private fun setVideoFetch(outcome: VideoFetch) {
+        if (videoFetch == outcome) return
+        videoFetch = outcome
+        renderStatus()
+    }
+
+    /**
+     * Draws the header for the current status: the title only shimmers while it is the unknown
+     * one, the subtitle always says what is being waited for and sweeps while it still is, and
+     * the action button offers a retry instead of a download while the card is built on nothing.
+     */
+    private fun renderStatus() {
+        runCatching {
+            val status = currentStatus()
+            val fetchingVideo = status == CardStatus.FetchingVideo
+            val busy = fetchingVideo || status == CardStatus.SearchingSong
+            val failed = status == CardStatus.VideoFailed || status == CardStatus.SongFailed
+
+            title.isVisible = !fetchingVideo
+            shimmerLoading.isVisible = fetchingVideo
+            if (fetchingVideo) shimmerLoading.startShimmer() else shimmerLoading.stopShimmer()
+
+            subtitle.isVisible = !busy
+            shimmerLoadingSubtitle.isVisible = busy
+            if (busy) {
+                loadingSubtitle.setText(statusText(status))
+                shimmerLoadingSubtitle.startShimmer()
+            } else {
+                shimmerLoadingSubtitle.stopShimmer()
+                subtitle.setText(statusText(status))
+            }
+
+            downloadBtn.isVisible = !failed
+            refreshBtn.isVisible = failed
+            if (fetchingVideo) (updateItem.parent as LinearLayout).visibility = View.GONE
+        }
+    }
+
+    private fun statusText(status: CardStatus): Int = when (status) {
+        CardStatus.FetchingVideo -> R.string.fetching_video_info
+        CardStatus.VideoFailed -> R.string.video_info_failed
+        CardStatus.SearchingSong -> R.string.searching_song
+        CardStatus.SongFailed -> R.string.song_lookup_failed
+        CardStatus.Ready ->
+            if (musicViewModel.enabled.value &&
+                musicViewModel.state.value is MusicViewModel.SearchState.NotFound
+            ) R.string.song_not_found else R.string.configure_download
+    }
+
+    /** The retry the failure offered: whichever of the two lookups is the one that broke. */
+    private fun retryFailedWork() {
+        if (currentStatus() == CardStatus.VideoFailed) initUpdateData() else musicViewModel.retry()
+    }
+
+    private companion object {
+        const val AUDIO_TAB = 0
+    }
+
     private fun getAlsoAudioDownloadItem(finished: (it: DownloadItem) -> Unit) {
         try {
             val ff = fragmentAdapter.fragments[0] as DownloadAudioFragment
@@ -705,6 +849,7 @@ class DownloadBottomSheetDialog : BottomSheetDialogFragment() {
             }
             if (resultViewModel.updatingData.value) return
 
+            setVideoFetch(VideoFetch.Running)
             lifecycleScope.launch(Dispatchers.IO) {
                 resultViewModel.updateItemData(result)
             }

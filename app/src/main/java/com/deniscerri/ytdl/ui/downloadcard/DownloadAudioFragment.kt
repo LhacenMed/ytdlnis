@@ -90,7 +90,8 @@ class DownloadAudioFragment(private var resultItem: ResultItem? = null, private 
         resultViewModel = ViewModelProvider(this)[ResultViewModel::class.java]
         ytdlpViewModel = ViewModelProvider(requireActivity())[YTDLPViewModel::class.java]
         formatViewModel = ViewModelProvider(requireActivity())[FormatViewModel::class.java]
-        musicViewModel = ViewModelProvider(this)[MusicViewModel::class.java]
+        //shared with the sheet, which owns the music mode button and reports the lookup state
+        musicViewModel = ViewModelProvider(requireActivity())[MusicViewModel::class.java]
         genericAudioFormats = FormatUtil(requireContext()).getGenericAudioFormats(requireContext().resources)
         preferences = PreferenceManager.getDefaultSharedPreferences(requireContext())
         shownFields = preferences.getStringSet("modify_download_card", requireContext().resources.getStringArray(R.array.modify_download_card_values).toSet())!!.toList()
@@ -136,6 +137,8 @@ class DownloadAudioFragment(private var resultItem: ResultItem? = null, private 
                     override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
                     override fun afterTextChanged(p0: Editable?) {
                         downloadItem.title = p0.toString()
+                        //a hand typed title is video info too, the lookup follows it just the same
+                        syncMusicLookup()
                     }
                 })
 
@@ -150,6 +153,7 @@ class DownloadAudioFragment(private var resultItem: ResultItem? = null, private 
                     override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
                     override fun afterTextChanged(p0: Editable?) {
                         downloadItem.author = p0.toString()
+                        syncMusicLookup()
                     }
                 })
 
@@ -182,7 +186,7 @@ class DownloadAudioFragment(private var resultItem: ResultItem? = null, private 
                 }
 
                 if (::musicCard.isInitialized) {
-                    toggleTitleFields(musicCard.isEnabled)
+                    toggleTitleFields(musicViewModel.enabled.value)
                     //the video info may have just landed, the lookup follows it
                     syncMusicLookup()
                 } else setupMusicCard(view)
@@ -456,7 +460,6 @@ class DownloadAudioFragment(private var resultItem: ResultItem? = null, private 
 
         musicCard = MusicMetadataCard(
             root = view,
-            onModeChanged = { enabled -> setMusicMode(enabled) },
             onMetadataChanged = { metadata, byUser ->
                 downloadItem.audioPreferences.musicMetadata = metadata.takeIf { it.isUsable }
                 //an edited or handpicked result is the users own, no later sync may replace it
@@ -480,36 +483,49 @@ class DownloadAudioFragment(private var resultItem: ResultItem? = null, private 
         lifecycleScope.launch {
             musicViewModel.state.collectLatest { state ->
                 when (state) {
-                    is MusicViewModel.SearchState.Waiting -> musicCard.showWaiting()
+                    is MusicViewModel.SearchState.Waiting,
                     is MusicViewModel.SearchState.Loading -> musicCard.showLoading()
                     is MusicViewModel.SearchState.Found -> musicCard.showMetadata(state.matches, state.selected)
-                    is MusicViewModel.SearchState.NotFound -> musicCard.showNotFound(parsedSongGuess())
+                    is MusicViewModel.SearchState.NotFound,
+                    is MusicViewModel.SearchState.Failed -> musicCard.showGuess(parsedSongGuess())
                     is MusicViewModel.SearchState.Idle -> {}
                 }
             }
         }
 
-        val saved = downloadItem.audioPreferences.musicMetadata
-        val enabled = saved != null || downloadItem.audioPreferences.musicMode
-        musicCard.setChecked(enabled)
-        toggleTitleFields(enabled)
+        //the sheet owns the switch, the card follows whatever it says
+        lifecycleScope.launch {
+            musicViewModel.enabled.collectLatest { enabled -> applyMusicMode(enabled) }
+        }
 
-        //a restored song was already settled, only a fresh card looks one up
+        //the lookup is shared with the activity, so a card always starts it from a clean slate
+        musicViewModel.reset()
+
+        val saved = downloadItem.audioPreferences.musicMetadata
+
+        //a restored song was already settled, only a fresh card looks one up: pinning it first
+        //is what keeps switching music mode on from searching over it
         if (saved != null) {
             musicViewModel.pin()
+            musicViewModel.setEnabled(true)
             musicCard.showMetadata(saved)
         } else {
-            syncMusicLookup()
+            //a reopened item keeps its own setting, a fresh card reopens on the last one used
+            musicViewModel.setEnabled(
+                if (currentDownloadItem != null) downloadItem.audioPreferences.musicMode
+                else LastUsedDownloadSettings.lastMusicMode(preferences)
+            )
         }
     }
 
-    private fun setMusicMode(enabled: Boolean) {
+    /** Music mode as the sheet reports it: the fields it replaces, and the lookup it starts. */
+    private fun applyMusicMode(enabled: Boolean) {
+        if (downloadItem.audioPreferences.musicMode == enabled && musicCard.isShown == enabled) return
         downloadItem.audioPreferences.musicMode = enabled
-        downloadItem.audioPreferences.musicMetadata = null
+        musicCard.setVisible(enabled)
         toggleTitleFields(enabled)
 
-        musicViewModel.reset()
-        if (enabled) syncMusicLookup()
+        if (enabled) syncMusicLookup() else downloadItem.audioPreferences.musicMetadata = null
     }
 
     /**
@@ -517,7 +533,7 @@ class DownloadAudioFragment(private var resultItem: ResultItem? = null, private 
      * when the item is updated. Does nothing until there is a real title to look up.
      */
     private fun syncMusicLookup() {
-        if (!::musicCard.isInitialized || !musicCard.isEnabled) return
+        if (!::musicCard.isInitialized || !musicViewModel.enabled.value) return
         musicViewModel.syncWithVideo(downloadItem.title, downloadItem.author, downloadItem.url)
     }
 

@@ -5,17 +5,23 @@ import androidx.lifecycle.viewModelScope
 import com.deniscerri.ytdl.database.models.MusicMetadata
 import com.deniscerri.ytdl.util.extractors.music.MusicMetadataUtil
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * Owns the music lookup for a single download card. The picked result itself lives on the
- * download item, this only drives the search lifecycle.
+ * Owns music mode for a single download card: whether it is on, and the lookup behind it. The
+ * picked result itself lives on the download item, this only drives the switch and the search.
  *
- * The card is shown before the video info is fetched, so the lookup follows the video data:
- * it waits while the title is still unknown and re-runs once the real title arrives, unless
- * the user already made the result their own.
+ * Both the card and the sheet read from here, which is why it is scoped to the activity: the
+ * button that turns music mode on sits in the sheet, the fields it fills sit in the audio tab,
+ * and neither may hold a different opinion about the same song.
+ *
+ * The card is shown before the video info is fetched, so the lookup follows the video data: it
+ * waits while the title is still unknown and re-runs whenever the title changes, whether that
+ * is the fetch landing or the user typing one in themselves, unless the user already made the
+ * result their own.
  *
  * A search only returns what the catalogue could answer in one request. The extended tags are
  * completed afterwards, for the shown match alone, and the state is re-emitted when they land
@@ -31,14 +37,22 @@ class MusicViewModel : ViewModel() {
         /** [matches] ranked by the catalogue, [selected] is the one the card shows. */
         data class Found(val matches: List<MusicMetadata>, val selected: Int = 0) : SearchState()
         data object NotFound : SearchState()
+        /** No catalogue could be reached, the only state a retry can do something about. */
+        data object Failed : SearchState()
     }
 
     private val _state = MutableStateFlow<SearchState>(SearchState.Idle)
     val state = _state.asStateFlow()
 
+    private val _enabled = MutableStateFlow(false)
+    val enabled = _enabled.asStateFlow()
+
     private var searchJob: Job? = null
     private var detailsJob: Job? = null
     private var lastQuery: String? = null
+
+    /** The lookup that produced the current state, so a retry repeats exactly it. */
+    private var lastSearch: (suspend () -> List<MusicMetadata>?)? = null
 
     /** Matches already completed, so picking one back costs nothing. */
     private val detailed = mutableSetOf<Int>()
@@ -46,11 +60,23 @@ class MusicViewModel : ViewModel() {
     /** Set once the user searches, picks or edits a result, so syncs stop overwriting it. */
     private var pinned = false
 
-    /** Keeps the lookup in sync with the video info, whenever it becomes available or changes. */
+    /** Music mode itself, switched from the sheet and rendered by both it and the card. */
+    fun setEnabled(value: Boolean) {
+        _enabled.value = value
+    }
+
+    /**
+     * Keeps the lookup in sync with the video info, whenever it becomes available or changes.
+     *
+     * Debounced, because the title it follows is also an editable field: typing one in by hand
+     * must cost one lookup, not one per keystroke.
+     */
     fun syncWithVideo(title: String, uploader: String, url: String) {
         if (pinned) return
 
         if (title.isBlank() || title == url) {
+            searchJob?.cancel()
+            lastQuery = null
             _state.value = SearchState.Waiting
             return
         }
@@ -58,13 +84,19 @@ class MusicViewModel : ViewModel() {
         val query = "$title|$uploader"
         if (query == lastQuery) return
         lastQuery = query
-        launchSearch { MusicMetadataUtil.searchFromVideo(title, uploader) }
+        launchSearch(TYPING_DELAY) { MusicMetadataUtil.searchFromVideo(title, uploader) }
     }
 
     /** Manual lookup with a user supplied artist and song name, optionally aimed at one catalogue. */
     fun search(artist: String, song: String, providerId: String?) {
         pin()
         launchSearch { MusicMetadataUtil.search(artist, song, providerId) }
+    }
+
+    /** Runs the lookup that failed once more, on the user asking for it. */
+    fun retry() {
+        val search = lastSearch ?: return
+        launchSearch(search = search)
     }
 
     /** Shows another of the matches, completing its extended tags on the way in. */
@@ -90,23 +122,26 @@ class MusicViewModel : ViewModel() {
         detailsJob?.cancel()
         detailed.clear()
         lastQuery = null
+        lastSearch = null
         pinned = false
         _state.value = SearchState.Idle
     }
 
-    private fun launchSearch(query: suspend () -> List<MusicMetadata>) {
+    private fun launchSearch(delayMillis: Long = 0, search: suspend () -> List<MusicMetadata>?) {
         searchJob?.cancel()
         detailsJob?.cancel()
         detailed.clear()
+        lastSearch = search
         _state.value = SearchState.Loading
         searchJob = viewModelScope.launch {
-            val matches = query()
-            if (matches.isEmpty()) {
-                _state.value = SearchState.NotFound
-                return@launch
+            if (delayMillis > 0) delay(delayMillis)
+            val matches = search()
+            _state.value = when {
+                matches == null -> SearchState.Failed
+                matches.isEmpty() -> SearchState.NotFound
+                else -> SearchState.Found(matches)
             }
-            _state.value = SearchState.Found(matches)
-            loadDetails(0)
+            if (matches?.isNotEmpty() == true) loadDetails(0)
         }
     }
 
@@ -127,5 +162,10 @@ class MusicViewModel : ViewModel() {
                 matches = current.matches.toMutableList().also { it[index] = completed }
             )
         }
+    }
+
+    private companion object {
+        /** Long enough to let a typed title settle, short enough to feel like it reacted. */
+        const val TYPING_DELAY = 600L
     }
 }

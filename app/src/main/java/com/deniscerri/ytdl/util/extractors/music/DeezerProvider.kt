@@ -21,8 +21,8 @@ object DeezerProvider : MusicProvider {
     override val id = "deezer"
     override val name = "Deezer"
 
-    override suspend fun search(query: String, limit: Int): List<MusicMetadata> {
-        val body = MusicHttp.json("$API/search?q=${MusicHttp.encode(query)}&limit=$limit") ?: return emptyList()
+    override suspend fun search(query: String, limit: Int): List<MusicMetadata>? {
+        val body = MusicHttp.json("$API/search?q=${MusicHttp.encode(query)}&limit=$limit") ?: return null
         return body.arr("data").map { it.asJsonObject.toMetadata() }.filter { it.isUsable }
     }
 

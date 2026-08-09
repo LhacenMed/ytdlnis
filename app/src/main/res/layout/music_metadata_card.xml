@@ -5,86 +5,17 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:paddingHorizontal="10dp"
-    android:paddingTop="10dp">
+    android:paddingHorizontal="10dp">
 
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/music_header"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:clickable="true"
-        android:focusable="true"
-        app:cardElevation="0dp"
-        app:shapeAppearance="@style/ShapeAppearanceOverlay.Avatar2"
-        app:strokeWidth="0dp">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingHorizontal="14dp"
-            android:paddingVertical="10dp">
-
-            <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:contentDescription="@string/music_mode"
-                android:src="@drawable/ic_music"
-                app:tint="?attr/colorPrimary" />
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="14dp"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/music_mode"
-                    android:textAppearance="@style/TextAppearance.Material3.TitleSmall" />
-
-                <TextView
-                    android:id="@+id/music_status"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:maxLines="2"
-                    android:ellipsize="end"
-                    android:text="@string/music_mode_summary"
-                    android:textAppearance="@style/TextAppearance.Material3.BodySmall"
-                    android:textColor="@android:color/tab_indicator_text" />
-
-            </LinearLayout>
-
-            <com.google.android.material.progressindicator.CircularProgressIndicator
-                android:id="@+id/music_progress"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="10dp"
-                android:indeterminate="true"
-                android:visibility="gone"
-                app:indicatorSize="20dp"
-                app:trackThickness="2dp" />
-
-            <com.google.android.material.materialswitch.MaterialSwitch
-                android:id="@+id/music_switch"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:clickable="false"
-                android:focusable="false" />
-
-        </LinearLayout>
-
-    </com.google.android.material.card.MaterialCardView>
-
+    <!-- Music mode is switched from the sheet's own button, so the card is either the song
+         itself or nothing at all: no header, no second control for the same setting -->
     <LinearLayout
         android:id="@+id/music_content"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
         android:orientation="vertical"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
         android:visibility="gone">
 
         <LinearLayout

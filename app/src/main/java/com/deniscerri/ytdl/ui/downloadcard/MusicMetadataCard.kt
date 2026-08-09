@@ -6,36 +6,32 @@ import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.EditText
-import android.widget.TextView
 import androidx.core.view.setPadding
 import com.deniscerri.ytdl.R
 import com.deniscerri.ytdl.database.models.MusicMetadata
 import com.deniscerri.ytdl.util.MusicCoverUtil
 import com.deniscerri.ytdl.util.extractors.music.MusicMetadataUtil
-import com.google.android.material.card.MaterialCardView
 import com.google.android.material.chip.Chip
 import com.facebook.shimmer.ShimmerFrameLayout
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.imageview.ShapeableImageView
-import com.google.android.material.materialswitch.MaterialSwitch
-import com.google.android.material.progressindicator.CircularProgressIndicator
 import com.google.android.material.textfield.MaterialAutoCompleteTextView
 import com.google.android.material.textfield.TextInputLayout
 
 /**
- * Binds the music metadata section of the audio download card: the mode switch, the editable
- * song fields with cover art, the alternative matches picker and the manual search dialog.
+ * Binds the music metadata section of the audio download card: the editable song fields with
+ * cover art, the alternative matches picker and the manual search dialog.
  *
  * The song, the artist, the album and the year are what identifies a track, so they stay on
  * screen. Everything else a catalogue resolves is a tag the user rarely corrects, and lives
  * behind the details chip.
  *
- * The card never fetches by itself, it only reports intent through its callbacks and renders
- * whatever state it is given.
+ * Music mode is switched from the sheet, and how the lookup is going is told by the sheet
+ * subtitle, so the card carries neither: it is the song or it is nothing. It never fetches by
+ * itself either, it only reports intent through its callbacks and renders the state it is given.
  */
 class MusicMetadataCard(
     private val root: View,
-    private val onModeChanged: (enabled: Boolean) -> Unit,
     private val onMetadataChanged: (metadata: MusicMetadata, byUser: Boolean) -> Unit,
     private val onMatchSelected: (index: Int) -> Unit,
     private val onCoverClicked: (cover: String) -> Unit,
@@ -43,10 +39,6 @@ class MusicMetadataCard(
 ) {
     private val context: Context = root.context
 
-    private val header: MaterialCardView = root.findViewById(R.id.music_header)
-    private val switch: MaterialSwitch = root.findViewById(R.id.music_switch)
-    private val status: TextView = root.findViewById(R.id.music_status)
-    private val progress: CircularProgressIndicator = root.findViewById(R.id.music_progress)
     private val content: View = root.findViewById(R.id.music_content)
     private val cover: ShapeableImageView = root.findViewById(R.id.music_cover)
     private val coverShimmer: ShimmerFrameLayout = root.findViewById(R.id.music_cover_shimmer)
@@ -81,17 +73,7 @@ class MusicMetadataCard(
         Field(R.id.music_isrc_textinput, { it.isrc }) { current.isrc = it }
     )
 
-    val isEnabled: Boolean get() = switch.isChecked
-
     init {
-        header.setOnClickListener { switch.isChecked = !switch.isChecked }
-        switch.setOnCheckedChangeListener { _, checked ->
-            content.isVisible(checked)
-            if (binding) return@setOnCheckedChangeListener
-            if (!checked) showIdle()
-            onModeChanged(checked)
-        }
-
         matchesChip.setOnClickListener { showMatchPicker() }
         searchChip.setOnClickListener { showSearchDialog() }
         detailsChip.setOnClickListener { showExtra(!extraShown) }
@@ -110,27 +92,16 @@ class MusicMetadataCard(
 
     // ── State rendering ────────────────────────────────────────────────────────
 
-    /** Restores the switch without emitting a mode change. */
-    fun setChecked(checked: Boolean) {
-        if (switch.isChecked == checked) return
-        binding = true
-        switch.isChecked = checked
-        content.isVisible(checked)
-        binding = false
+    /** Music mode itself: the card is the whole of it, so it is either shown or it is not. */
+    fun setVisible(visible: Boolean) {
+        content.isVisible(visible)
     }
 
+    val isShown: Boolean get() = content.visibility == View.VISIBLE
+
+    /** A lookup is running, which the artwork shows by sweeping until a result lands. */
     fun showLoading() {
         showCoverLoading(true)
-        progress.isVisible(true)
-        status.text = context.getString(R.string.searching_song)
-        matchesChip.isEnabled = false
-    }
-
-    /** The video info is still being fetched, the lookup runs as soon as it lands. */
-    fun showWaiting() {
-        showCoverLoading(true)
-        progress.isVisible(true)
-        status.text = context.getString(R.string.waiting_for_video_info)
         matchesChip.isEnabled = false
     }
 
@@ -140,31 +111,20 @@ class MusicMetadataCard(
         matches = all
         selectedMatch = selected
         showCoverLoading(false)
-        progress.isVisible(false)
         matchesChip.isVisible(all.size > 1)
         matchesChip.isEnabled = true
-        status.text = metadata.details().ifBlank { context.getString(R.string.music_mode_summary) }
         bindFields(metadata)
     }
 
     /** A settled song with no alternatives, restored from the download item. */
     fun showMetadata(metadata: MusicMetadata) = showMetadata(listOf(metadata), 0)
 
-    /** No API match: keeps the parsed guess editable so the user can correct it. */
-    fun showNotFound(guess: MusicMetadata) {
+    /** No match to show: keeps the parsed guess editable so the user can correct it. */
+    fun showGuess(guess: MusicMetadata) {
         matches = emptyList()
         showCoverLoading(false)
-        progress.isVisible(false)
         matchesChip.isVisible(false)
-        status.text = context.getString(R.string.song_not_found)
         bindFields(guess)
-    }
-
-    private fun showIdle() {
-        matches = emptyList()
-        showCoverLoading(false)
-        progress.isVisible(false)
-        status.text = context.getString(R.string.music_mode_summary)
     }
 
     private fun showExtra(show: Boolean) {

@@ -28,7 +28,7 @@
                 android:layout_marginTop="4dp"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="20dp"
-                app:layout_constraintEnd_toStartOf="@+id/bottomsheet_schedule_button"
+                app:layout_constraintEnd_toStartOf="@+id/bottomsheet_music_button"
                 app:layout_constraintHorizontal_bias="0.0"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
@@ -57,10 +57,21 @@
                 android:singleLine="false"
                 android:text="@string/download"
                 android:textSize="20sp"
-                app:layout_constraintEnd_toStartOf="@+id/bottomsheet_schedule_button"
+                app:layout_constraintEnd_toStartOf="@+id/bottomsheet_music_button"
                 app:layout_constraintHorizontal_bias="0.0"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
+
+            <!-- The title is either the real one or the one that shimmers, and only one of them
+                 is ever laid out. The subtitle hangs off whichever that is, so it cannot land on
+                 top of the title when the two stop being shown and hidden together. -->
+            <androidx.constraintlayout.widget.Barrier
+                android:id="@+id/title_barrier"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:barrierAllowsGoneWidgets="false"
+                app:barrierDirection="bottom"
+                app:constraint_referenced_ids="shimmer_loading_title,bottom_sheet_title" />
 
             <com.facebook.shimmer.ShimmerFrameLayout
                 android:visibility="gone"
@@ -68,17 +79,18 @@
                 android:layout_height="wrap_content"
                 app:layout_constraintHorizontal_bias="0.0"
                 android:layout_marginEnd="20dp"
-                app:layout_constraintEnd_toStartOf="@+id/bottomsheet_schedule_button"
+                app:layout_constraintEnd_toStartOf="@+id/bottomsheet_music_button"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/shimmer_loading_title"
+                app:layout_constraintTop_toBottomOf="@+id/title_barrier"
                 android:id="@+id/shimmer_loading_subtitle"
                 android:orientation="vertical">
 
                 <TextView
+                    android:id="@+id/bottom_sheet_loading_subtitle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:maxLines="2"
-                    android:singleLine="false"
+                    android:ellipsize="end"
+                    android:maxLines="1"
                     android:text="@string/please_wait"
                     android:textSize="12sp" />
 
@@ -88,43 +100,63 @@
                 android:id="@+id/bottom_sheet_subtitle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:maxLines="2"
+                android:ellipsize="end"
+                android:maxLines="1"
                 android:layout_marginEnd="20dp"
-                android:singleLine="false"
                 android:text="@string/configure_download"
                 android:textSize="12sp"
                 app:layout_constraintHorizontal_bias="0.0"
-                app:layout_constraintEnd_toStartOf="@+id/bottomsheet_schedule_button"
+                app:layout_constraintEnd_toStartOf="@+id/bottomsheet_music_button"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/bottom_sheet_title" />
+                app:layout_constraintTop_toBottomOf="@+id/title_barrier" />
 
             <Button
-                android:id="@+id/bottomsheet_schedule_button"
+                android:id="@+id/bottomsheet_music_button"
                 style="@style/Widget.Material3.Button.IconButton.Filled"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="10dp"
+                android:alpha="0.3"
                 android:outlineProvider="none"
-                app:icon="@drawable/ic_clock"
-                android:contentDescription="@string/schedule"
-                app:layout_constraintBottom_toBottomOf="@id/bottomsheet_download_button"
-                app:layout_constraintEnd_toStartOf="@+id/bottomsheet_download_button"
-                app:layout_constraintTop_toTopOf="@id/bottomsheet_download_button" />
+                app:icon="@drawable/ic_music"
+                android:contentDescription="@string/music_mode"
+                app:layout_constraintBottom_toBottomOf="@id/bottomsheet_action"
+                app:layout_constraintEnd_toStartOf="@+id/bottomsheet_action"
+                app:layout_constraintTop_toTopOf="@id/bottomsheet_action" />
 
-            <Button
-                android:id="@+id/bottomsheet_download_button"
-                style="@style/Widget.Material3.Button.ElevatedButton.Icon"
+            <!-- Download and retry are the same slot: while the data the card is built on could
+                 not be fetched, the only sensible action there is fetching it again -->
+            <FrameLayout
+                android:id="@+id/bottomsheet_action"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:autoLink="all"
-                android:text="@string/download"
-                android:outlineProvider="none"
-                android:stateListAnimator="@null"
-                app:icon="@drawable/ic_down"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+                app:layout_constraintTop_toTopOf="parent">
 
+                <Button
+                    android:id="@+id/bottomsheet_download_button"
+                    style="@style/Widget.Material3.Button.ElevatedButton.Icon"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:autoLink="all"
+                    android:text="@string/download"
+                    android:outlineProvider="none"
+                    android:stateListAnimator="@null"
+                    app:icon="@drawable/ic_down" />
+
+                <Button
+                    android:id="@+id/bottomsheet_refresh_button"
+                    style="@style/Widget.Material3.Button.ElevatedButton.Icon"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/retry"
+                    android:outlineProvider="none"
+                    android:stateListAnimator="@null"
+                    android:visibility="gone"
+                    app:icon="@drawable/ic_refresh" />
+
+            </FrameLayout>
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -177,8 +209,21 @@
                 android:textSize="15sp"
                 app:icon="@drawable/ic_link"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toStartOf="@+id/bottomsheet_incognito"
+                app:layout_constraintEnd_toStartOf="@+id/bottomsheet_schedule_button"
                 app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <Button
+                android:id="@+id/bottomsheet_schedule_button"
+                style="@style/Widget.Material3.Button.IconButton.Filled"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginVertical="10dp"
+                android:outlineProvider="none"
+                android:contentDescription="@string/schedule"
+                app:icon="@drawable/ic_clock"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@+id/bottomsheet_incognito"
                 app:layout_constraintTop_toTopOf="parent" />
 
             <Button

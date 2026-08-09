@@ -25,6 +25,8 @@ import com.google.gson.Gson
 object LastUsedDownloadSettings {
     private const val SNAPSHOT_KEY = "last_used_settings_"
     private const val TYPE_KEY = "last_used_download_type"
+    private const val MUSIC_MODE_KEY = "last_used_music_mode"
+    private const val INCOGNITO_KEY = "last_used_incognito"
     private val gson = Gson()
 
     private data class Snapshot(
@@ -54,7 +56,8 @@ object LastUsedDownloadSettings {
             formatId = item.format.format_id,
             saveThumb = item.SaveThumb,
             audio = if (item.type == DownloadType.audio) {
-                item.audioPreferences.copy(musicMetadata = null)
+                //music mode is the sheet's own toggle, remembered on its own above
+                item.audioPreferences.copy(musicMetadata = null, musicMode = false)
             } else null,
             video = if (item.type == DownloadType.video) {
                 item.videoPreferences.copy(cropValues = "")
@@ -65,6 +68,26 @@ object LastUsedDownloadSettings {
             putString(TYPE_KEY, item.type.toString())
         }
     }
+
+    // ── The sheet's own toggles ────────────────────────────────────────────────
+    //
+    // Music mode and incognito belong to the card rather than to one of its tabs, and a single
+    // boolean each. Routing them through a tab snapshot made them depend on that tab's view
+    // existing and its lifecycle reaching a save, which is a lot of timing for a switch the
+    // user simply left on, so they are written the moment they are switched instead.
+
+    fun rememberMusicMode(preferences: SharedPreferences, enabled: Boolean) =
+        preferences.edit { putBoolean(MUSIC_MODE_KEY, enabled) }
+
+    fun lastMusicMode(preferences: SharedPreferences): Boolean =
+        preferences.getBoolean(MUSIC_MODE_KEY, false)
+
+    fun rememberIncognito(preferences: SharedPreferences, enabled: Boolean) =
+        preferences.edit { putBoolean(INCOGNITO_KEY, enabled) }
+
+    /** [default] is the app setting, which stands until the card is switched out of it once. */
+    fun lastIncognito(preferences: SharedPreferences, default: Boolean): Boolean =
+        preferences.getBoolean(INCOGNITO_KEY, default)
 
     /** Seeds a freshly created item with the last used configuration of its type. */
     fun apply(preferences: SharedPreferences, item: DownloadItem) {

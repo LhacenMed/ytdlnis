@@ -164,7 +164,7 @@ object MusicMetadataUtil {
         title: String,
         providerId: String? = null,
         limit: Int = MATCH_LIMIT
-    ): List<MusicMetadata> = lookup(MusicQuery(artist, title, MusicMatcher.versionOf(title)), providerId, limit)
+    ): List<MusicMetadata>? = lookup(MusicQuery(artist, title, MusicMatcher.versionOf(title)), providerId, limit)
 
     /**
      * Automatic lookup from the fetched video info. Enriches the results with featuring artists
@@ -174,19 +174,19 @@ object MusicMetadataUtil {
      * convincingly: a second reading of the title is worth a request only while the first one
      * left the song in doubt.
      */
-    suspend fun searchFromVideo(videoTitle: String, uploader: String, limit: Int = MATCH_LIMIT): List<MusicMetadata> =
+    suspend fun searchFromVideo(videoTitle: String, uploader: String, limit: Int = MATCH_LIMIT): List<MusicMetadata>? =
         withContext(Dispatchers.IO) {
-            var best = emptyList<MusicMetadata>()
+            var best: List<MusicMetadata>? = null
             for (query in buildSearchQueries(videoTitle, uploader)) {
-                val matches = lookup(query, null, limit)
+                val matches = lookup(query, null, limit) ?: return@withContext null
                 val top = matches.firstOrNull() ?: continue
-                if (best.isEmpty()) best = matches
+                if (best == null) best = matches
                 if (MusicMatcher.score(query, top) >= MusicMatcher.CONFIDENT) {
                     best = matches
                     break
                 }
             }
-            best.map { enrichWithFeaturing(it, videoTitle) }
+            best.orEmpty().map { enrichWithFeaturing(it, videoTitle) }
         }
 
     /**
@@ -198,18 +198,21 @@ object MusicMetadataUtil {
      * a catalogue that answered with the wrong rendition.
      */
     suspend fun resolveForVideo(videoTitle: String, uploader: String): MusicMetadata? =
-        searchFromVideo(videoTitle, uploader).firstOrNull()?.let { details(it) }
+        searchFromVideo(videoTitle, uploader)?.firstOrNull()?.let { details(it) }
 
     /**
      * One round of the lookup: every chosen catalogue is asked at the same time, so consulting
      * them all costs the slowest one rather than the sum, and their answers are then ranked
      * against [query] together.
+     *
+     * Null when not a single catalogue could be reached, which is the one outcome a retry can
+     * do something about. A catalogue that answered with nothing still counts as an answer.
      */
     private suspend fun lookup(
         query: MusicQuery,
         providerId: String?,
         limit: Int
-    ): List<MusicMetadata> = withContext(Dispatchers.IO) {
+    ): List<MusicMetadata>? = withContext(Dispatchers.IO) {
         val text = query.text()
         if (text.isBlank()) return@withContext emptyList()
 
@@ -217,7 +220,8 @@ object MusicMetadataUtil {
         val results = coroutineScope {
             chosen.map { async { it.search(text, limit) } }.awaitAll()
         }
-        MusicMatcher.rank(query, results, limit)
+        if (results.all { it == null }) return@withContext null
+        MusicMatcher.rank(query, results.map { it.orEmpty() }, limit)
     }
 
     /**
