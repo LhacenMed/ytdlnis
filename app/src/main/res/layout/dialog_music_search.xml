@@ -8,7 +8,7 @@
 
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/music_search_artist"
-        style="@style/Widget.Material3.TextInputLayout.FilledBox"
+        style="@style/Widget.App.TextInputLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="@string/artist">
@@ -23,7 +23,7 @@
 
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/music_search_song"
-        style="@style/Widget.Material3.TextInputLayout.FilledBox"
+        style="@style/Widget.App.TextInputLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
@@ -40,7 +40,7 @@
 
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/music_search_provider"
-        style="@style/Widget.Material3.TextInputLayout.FilledBox.ExposedDropdownMenu"
+        style="@style/Widget.App.TextInputLayout.Dropdown"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"

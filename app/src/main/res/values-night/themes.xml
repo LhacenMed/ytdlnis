@@ -12,6 +12,7 @@
         <item name="switchPreferenceCompatStyle">@style/Preference.SwitchPreferenceCompat.Material3</item>
         <item name="snackbarStyle">@style/snackBarStyle</item>
         <item name="preferenceTheme">@style/PreferenceTheme</item>
+        <item name="textInputStyle">@style/Widget.App.TextInputLayout</item>
         <item name="android:windowOptOutEdgeToEdgeEnforcement" tools:targetApi="35">true</item>
     </style>
 

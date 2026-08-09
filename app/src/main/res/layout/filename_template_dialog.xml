@@ -13,7 +13,7 @@
 
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/filename"
-            style="@style/Widget.Material3.TextInputLayout.FilledBox"
+            style="@style/Widget.App.TextInputLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:padding="10dp"

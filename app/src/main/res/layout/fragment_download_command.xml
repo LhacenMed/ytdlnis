@@ -18,7 +18,7 @@
             app:endIconMode="custom"
             app:endIconDrawable="@drawable/ic_clipboard"
             android:hint="@string/command"
-            style="@style/Widget.Material3.TextInputLayout.FilledBox">
+            style="@style/Widget.App.TextInputLayout">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:layout_width="match_parent"
@@ -45,7 +45,7 @@
             android:paddingHorizontal="10dp"
             android:layout_height="wrap_content"
             android:hint="@string/save_dir"
-            style="@style/Widget.Material3.TextInputLayout.FilledBox">
+            style="@style/Widget.App.TextInputLayout">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:layout_width="match_parent"

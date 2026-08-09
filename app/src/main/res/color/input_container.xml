@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The fill behind every text field, dropdown and quality section.
+     A tint of the theme's surface rather than a colour of its own, so it stays right in every
+     theme and in both light and dark, and light enough to read as a container the content sits
+     in rather than as a block drawn over the sheet. Opacity is the one value to turn here. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:alpha="0.75"
+        android:color="?attr/colorSurfaceVariant" />
+</selector>

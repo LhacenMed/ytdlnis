@@ -9,14 +9,14 @@
     android:focusable="true"
     android:backgroundTint="@android:color/transparent"
     app:checkedIcon="@null"
-    app:shapeAppearance="@style/ShapeAppearanceOverlay.Avatar"
+    app:shapeAppearance="@style/ShapeAppearanceOverlay.Input"
     app:strokeWidth="0dp"
     app:cardPreventCornerOverlap="true"
     android:layout_height="wrap_content">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:paddingVertical="5dp"
+        android:paddingVertical="10dp"
         android:paddingHorizontal="10dp"
         android:layout_height="wrap_content">
 

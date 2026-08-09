@@ -38,6 +38,12 @@
         <item name="cornerSize">50%</item>
     </style>
 
+    <!-- The inputs' own shape, for the components that sit among them and have to agree -->
+    <style name="ShapeAppearanceOverlay.Input" parent="ShapeAppearance.MaterialComponents.SmallComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">@dimen/input_corner_radius</item>
+    </style>
+
     <style name="ShapeAppearanceOverlay.Avatar2" parent="ShapeAppearance.MaterialComponents.SmallComponent">
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">7dp</item>
@@ -79,6 +85,48 @@
 
     <style name="MyZeroSizeTextAppearance">
         <item name="android:textSize">0sp</item>
+    </style>
+
+    <!-- ── Text inputs ───────────────────────────────────────────────────────
+         One shape for every field in the app: a filled container rounded on all
+         four corners, with its label inside it and no underline, so a field reads
+         as a solid block to fill rather than as a line to write on.
+
+         The three variants are the ones the layouts actually need, and differ only
+         in density and in the dropdown affordance they inherit. Everything about
+         how they look lives here, so restyling the app's inputs is editing this
+         block and the corner radius beside it, nothing else. The app theme points
+         textInputStyle at the first one, so a field that names no style at all
+         still comes out the same. -->
+
+    <style name="Widget.App.TextInputLayout" parent="Widget.Material3.TextInputLayout.FilledBox">
+        <item name="boxCornerRadiusTopStart">@dimen/input_corner_radius</item>
+        <item name="boxCornerRadiusTopEnd">@dimen/input_corner_radius</item>
+        <item name="boxCornerRadiusBottomStart">@dimen/input_corner_radius</item>
+        <item name="boxCornerRadiusBottomEnd">@dimen/input_corner_radius</item>
+        <item name="boxStrokeWidth">0dp</item>
+        <item name="boxBackgroundColor">@color/input_container</item>
+        <item name="boxStrokeWidthFocused">0dp</item>
+    </style>
+
+    <style name="Widget.App.TextInputLayout.Dense" parent="Widget.Material3.TextInputLayout.FilledBox.Dense">
+        <item name="boxCornerRadiusTopStart">@dimen/input_corner_radius</item>
+        <item name="boxCornerRadiusTopEnd">@dimen/input_corner_radius</item>
+        <item name="boxCornerRadiusBottomStart">@dimen/input_corner_radius</item>
+        <item name="boxCornerRadiusBottomEnd">@dimen/input_corner_radius</item>
+        <item name="boxStrokeWidth">0dp</item>
+        <item name="boxBackgroundColor">@color/input_container</item>
+        <item name="boxStrokeWidthFocused">0dp</item>
+    </style>
+
+    <style name="Widget.App.TextInputLayout.Dropdown" parent="Widget.Material3.TextInputLayout.FilledBox.ExposedDropdownMenu">
+        <item name="boxCornerRadiusTopStart">@dimen/input_corner_radius</item>
+        <item name="boxCornerRadiusTopEnd">@dimen/input_corner_radius</item>
+        <item name="boxCornerRadiusBottomStart">@dimen/input_corner_radius</item>
+        <item name="boxCornerRadiusBottomEnd">@dimen/input_corner_radius</item>
+        <item name="boxStrokeWidth">0dp</item>
+        <item name="boxBackgroundColor">@color/input_container</item>
+        <item name="boxStrokeWidthFocused">0dp</item>
     </style>
 
 </resources>

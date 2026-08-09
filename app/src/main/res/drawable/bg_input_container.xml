@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The filled container the text fields draw, for the sections that are not text fields but
+     read as one block alongside them. Shares the inputs' corner radius, so the whole card keeps
+     one shape language from a single dimen. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+
+    <!-- The very fill the fields use, so this container sits at exactly their weight -->
+    <solid android:color="@color/input_container" />
+
+    <corners android:radius="@dimen/input_corner_radius" />
+
+</shape>

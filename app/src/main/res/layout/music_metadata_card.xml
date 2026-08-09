@@ -15,7 +15,7 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:paddingTop="10dp"
-        android:paddingBottom="10dp"
+        android:paddingBottom="7dp"
         android:visibility="gone">
 
         <LinearLayout
@@ -52,7 +52,7 @@
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/music_song_textinput"
-                    style="@style/Widget.Material3.TextInputLayout.FilledBox"
+                    style="@style/Widget.App.TextInputLayout"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:hint="@string/song">
@@ -67,7 +67,7 @@
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/music_artist_textinput"
-                    style="@style/Widget.Material3.TextInputLayout.FilledBox"
+                    style="@style/Widget.App.TextInputLayout"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
@@ -95,7 +95,7 @@
 
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/music_album_textinput"
-                style="@style/Widget.Material3.TextInputLayout.FilledBox"
+                style="@style/Widget.App.TextInputLayout"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="60"
@@ -111,7 +111,7 @@
 
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/music_year_textinput"
-                style="@style/Widget.Material3.TextInputLayout.FilledBox"
+                style="@style/Widget.App.TextInputLayout"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="40"
@@ -183,7 +183,7 @@
 
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/music_album_artist_textinput"
-                style="@style/Widget.Material3.TextInputLayout.FilledBox"
+                style="@style/Widget.App.TextInputLayout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="@string/album_artist">
@@ -206,7 +206,7 @@
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/music_genre_textinput"
-                    style="@style/Widget.Material3.TextInputLayout.FilledBox"
+                    style="@style/Widget.App.TextInputLayout"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="50"
@@ -222,7 +222,7 @@
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/music_label_textinput"
-                    style="@style/Widget.Material3.TextInputLayout.FilledBox"
+                    style="@style/Widget.App.TextInputLayout"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="50"
@@ -248,7 +248,7 @@
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/music_track_textinput"
-                    style="@style/Widget.Material3.TextInputLayout.FilledBox"
+                    style="@style/Widget.App.TextInputLayout"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
@@ -264,7 +264,7 @@
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/music_track_total_textinput"
-                    style="@style/Widget.Material3.TextInputLayout.FilledBox"
+                    style="@style/Widget.App.TextInputLayout"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
@@ -280,7 +280,7 @@
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/music_disc_textinput"
-                    style="@style/Widget.Material3.TextInputLayout.FilledBox"
+                    style="@style/Widget.App.TextInputLayout"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
@@ -298,7 +298,7 @@
 
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/music_isrc_textinput"
-                style="@style/Widget.Material3.TextInputLayout.FilledBox"
+                style="@style/Widget.App.TextInputLayout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"

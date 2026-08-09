@@ -23,7 +23,7 @@
                 android:paddingHorizontal="10dp"
                 android:paddingBottom="10dp"
                 android:hint="@string/title"
-                style="@style/Widget.Material3.TextInputLayout.FilledBox">
+                style="@style/Widget.App.TextInputLayout">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:layout_width="match_parent"
@@ -47,7 +47,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="45"
                     android:hint="@string/author"
-                    style="@style/Widget.Material3.TextInputLayout.FilledBox">
+                    style="@style/Widget.App.TextInputLayout">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:layout_width="match_parent"
@@ -60,7 +60,7 @@
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/downloadContainer"
-                    style="@style/Widget.Material3.TextInputLayout.FilledBox.ExposedDropdownMenu"
+                    style="@style/Widget.App.TextInputLayout.Dropdown"
                     android:layout_width="0dp"
                     android:layout_weight="45"
                     android:layout_height="wrap_content"
@@ -85,7 +85,21 @@
                 android:paddingTop="10dp"
                 android:paddingHorizontal="10dp"
                 android:text="@string/audio_quality" />
-            <include layout="@layout/format_item" />
+
+            <!-- The chosen format reads as a filled block like the fields around it. The row
+                 itself is shared with the format picker, where a list of filled blocks would
+                 run together, so the container belongs to this section rather than to the row -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="10dp"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/bg_input_container"
+                android:padding="6dp">
+
+                <include layout="@layout/format_item" />
+
+            </FrameLayout>
 
 
             <com.google.android.material.textfield.TextInputLayout
@@ -93,7 +107,7 @@
                 android:paddingHorizontal="10dp"
                 android:paddingBottom="0dp"
                 android:paddingTop="10dp"
-                style="@style/Widget.Material3.TextInputLayout.FilledBox"
+                style="@style/Widget.App.TextInputLayout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="@string/save_dir">

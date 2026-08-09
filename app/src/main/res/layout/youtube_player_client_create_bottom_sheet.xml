@@ -87,7 +87,7 @@
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/title"
-                    style="@style/Widget.Material3.TextInputLayout.FilledBox"
+                    style="@style/Widget.App.TextInputLayout"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:hint="@string/player_client"
@@ -135,7 +135,7 @@
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/po_token_gvs"
-                    style="@style/Widget.Material3.TextInputLayout.FilledBox"
+                    style="@style/Widget.App.TextInputLayout"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:tag="potoken_gvs"
@@ -153,7 +153,7 @@
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/po_token_player"
-                    style="@style/Widget.Material3.TextInputLayout.FilledBox"
+                    style="@style/Widget.App.TextInputLayout"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:tag="potoken_player"
@@ -172,7 +172,7 @@
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/po_token_subs"
-                    style="@style/Widget.Material3.TextInputLayout.FilledBox"
+                    style="@style/Widget.App.TextInputLayout"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:tag="potoken_subs"
@@ -191,7 +191,7 @@
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/url_regex"
-                    style="@style/Widget.Material3.TextInputLayout.FilledBox"
+                    style="@style/Widget.App.TextInputLayout"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:tag="url_regex"

@@ -69,7 +69,7 @@
             android:paddingHorizontal="10dp"
             android:paddingBottom="10dp"
             android:hint="@string/title"
-            style="@style/Widget.Material3.TextInputLayout.FilledBox">
+            style="@style/Widget.App.TextInputLayout">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:layout_width="match_parent"
@@ -89,7 +89,7 @@
             app:endIconContentDescription="@string/import_from_clipboard"
             app:endIconMode="custom"
             app:endIconDrawable="@drawable/ic_clipboard"
-            style="@style/Widget.Material3.TextInputLayout.FilledBox">
+            style="@style/Widget.App.TextInputLayout">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:layout_width="match_parent"
@@ -178,7 +178,7 @@
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/textInputLayout"
-                    style="@style/Widget.Material3.TextInputLayout.FilledBox.ExposedDropdownMenu"
+                    style="@style/Widget.App.TextInputLayout.Dropdown"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
                     android:hint="@string/every"
@@ -198,7 +198,7 @@
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/everyMonthDay_textInput"
-                    style="@style/Widget.Material3.TextInputLayout.FilledBox.ExposedDropdownMenu"
+                    style="@style/Widget.App.TextInputLayout.Dropdown"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
                     android:hint="@string/day"
@@ -295,7 +295,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
                     android:paddingEnd="10dp"
-                    style="@style/Widget.Material3.TextInputLayout.FilledBox">
+                    style="@style/Widget.App.TextInputLayout">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:layout_width="match_parent"
@@ -315,7 +315,7 @@
                     android:layout_height="wrap_content"
                     android:paddingBottom="10dp"
                     android:hint="@string/set_time"
-                    style="@style/Widget.Material3.TextInputLayout.FilledBox">
+                    style="@style/Widget.App.TextInputLayout">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:layout_width="match_parent"
@@ -347,7 +347,7 @@
                 android:layout_height="wrap_content"
                 android:paddingBottom="10dp"
                 android:hint="@string/starts"
-                style="@style/Widget.Material3.TextInputLayout.FilledBox">
+                style="@style/Widget.App.TextInputLayout">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:layout_width="match_parent"
@@ -359,7 +359,7 @@
 
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/startsMonth_textInput"
-                style="@style/Widget.Material3.TextInputLayout.FilledBox.ExposedDropdownMenu"
+                style="@style/Widget.App.TextInputLayout.Dropdown"
                 android:layout_width="match_parent"
                 android:layout_weight="45"
                 android:paddingHorizontal="10dp"
@@ -420,7 +420,7 @@
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/on_date"
-                        style="@style/Widget.Material3.TextInputLayout.FilledBox"
+                        style="@style/Widget.App.TextInputLayout"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="3"
@@ -459,7 +459,7 @@
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/after_nr"
-                        style="@style/Widget.Material3.TextInputLayout.FilledBox.Dense"
+                        style="@style/Widget.App.TextInputLayout.Dense"
                         android:layout_width="wrap_content"
                         android:layout_height="match_parent"
                         app:layout_constraintStart_toEndOf="@+id/after">

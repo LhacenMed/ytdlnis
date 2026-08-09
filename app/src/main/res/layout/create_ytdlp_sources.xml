@@ -17,7 +17,7 @@
         android:paddingHorizontal="10dp"
         android:paddingBottom="10dp"
         android:hint="@string/title"
-        style="@style/Widget.Material3.TextInputLayout.FilledBox">
+        style="@style/Widget.App.TextInputLayout">
 
         <com.google.android.material.textfield.TextInputEditText
             android:layout_width="match_parent"
@@ -36,7 +36,7 @@
         app:expandedHintEnabled="true"
         app:hintEnabled="true"
         android:hint="@string/source"
-        style="@style/Widget.Material3.TextInputLayout.FilledBox">
+        style="@style/Widget.App.TextInputLayout">
 
         <com.google.android.material.textfield.TextInputEditText
             android:layout_width="match_parent"

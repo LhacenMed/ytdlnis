@@ -253,7 +253,7 @@
                         android:layout_width="0dp"
                         android:layout_columnWeight="1"
                         android:layout_marginEnd="4dp"
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense"
+                        style="@style/Widget.App.TextInputLayout.Dense"
                         android:hint="@string/x_offset">
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/crop_x_edittext"
@@ -267,7 +267,7 @@
                         android:layout_width="0dp"
                         android:layout_columnWeight="1"
                         android:layout_marginStart="4dp"
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense"
+                        style="@style/Widget.App.TextInputLayout.Dense"
                         android:hint="@string/y_offset">
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/crop_y_edittext"
@@ -281,7 +281,7 @@
                         android:layout_width="0dp"
                         android:layout_columnWeight="1"
                         android:layout_marginEnd="4dp"
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense"
+                        style="@style/Widget.App.TextInputLayout.Dense"
                         android:hint="@string/width">
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/crop_width_edittext"
@@ -295,7 +295,7 @@
                         android:layout_width="0dp"
                         android:layout_columnWeight="1"
                         android:layout_marginStart="4dp"
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense"
+                        style="@style/Widget.App.TextInputLayout.Dense"
                         android:hint="@string/height">
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/crop_height_edittext"
