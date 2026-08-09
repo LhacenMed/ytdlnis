@@ -5,7 +5,8 @@ import com.deniscerri.ytdl.database.models.MusicSource
 import com.google.gson.JsonObject
 
 /**
- * iTunes, the fallback catalogue, queried when Deezer knows nothing about the song.
+ * iTunes, consulted alongside Deezer: it often names the plain release where Deezer ranks a
+ * rendition of it first, so it is asked every time rather than only when Deezer says nothing.
  *
  * Its search endpoint returns the full record in one response, so there is nothing left for
  * [details] to complete. It carries no label and no ISRC, those tags simply stay blank.

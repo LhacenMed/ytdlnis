@@ -2,11 +2,14 @@ package com.deniscerri.ytdl.util.extractors.music
 
 import com.deniscerri.ytdl.database.models.MusicMetadata
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 
 /**
  * Resolves music tags for a video title: turns it into something a catalogue can answer,
- * then asks the [MusicProvider]s in turn.
+ * then asks every [MusicProvider] at once and keeps the answers that fit the query best.
  *
  * The title parsing is heuristic: a video title like
  * "Dhurata Dora ft. Soolking - Zemër (Official Video)" becomes
@@ -105,27 +108,34 @@ object MusicMetadataUtil {
     }
 
     /**
-     * Ordered (artist, title) candidates for a video title.
+     * Ordered lookup candidates for a video title.
      * The reversed candidate covers "Song - Artist1 & Artist2" style titles.
+     *
+     * The searched title is the cleaned one, while the rendition the video names is carried
+     * beside it: a video titled "(Remix)" is looked up as the song, then matched to the remix.
      */
-    fun buildSearchQueries(rawTitle: String, uploader: String = ""): List<Pair<String, String>> {
+    fun buildSearchQueries(rawTitle: String, uploader: String = ""): List<MusicQuery> {
         val parts = rawTitle.split(TITLE_SPLIT, limit = 2)
         if (parts.size != 2) {
             // No separator: the uploader is the best artist guess (music channels, " - Topic")
-            return listOf(formatArtists(parseArtistField(cleanUploader(uploader))) to cleanTitle(rawTitle))
+            return listOf(query(formatArtists(parseArtistField(cleanUploader(uploader))), rawTitle))
         }
 
         val left = parts[0].trim()
         val right = parts[1].trim()
-        val queries = mutableListOf(formatArtists(parseArtistField(left)) to cleanTitle(right))
+        val queries = mutableListOf(query(formatArtists(parseArtistField(left)), right))
 
         val leftHasSeparators = ARTIST_SPLIT.containsMatchIn(left)
         val rightHasSeparators = ARTIST_SPLIT.containsMatchIn(right)
         if (rightHasSeparators && !leftHasSeparators && !right.contains('(')) {
-            queries.add(formatArtists(parseArtistField(cleanTitle(right))) to cleanTitle(left))
+            queries.add(query(formatArtists(parseArtistField(cleanTitle(right))), left))
         }
         return queries
     }
+
+    /** A candidate built from a raw title portion: cleaned for the search, read for its rendition. */
+    private fun query(artist: String, rawTitle: String) =
+        MusicQuery(artist, cleanTitle(rawTitle), MusicMatcher.versionOf(rawTitle))
 
     /** Filesystem-safe "Artist - Title.ext". */
     fun buildFileName(metadata: MusicMetadata, extension: String): String {
@@ -137,42 +147,46 @@ object MusicMetadataUtil {
     // ── Lookup ─────────────────────────────────────────────────────────────
 
     /**
-     * The catalogues, in the order they are consulted: the first one with a hit answers the
-     * lookup. Adding one is adding it here.
+     * The catalogues, in priority order: they are all consulted, and this order only decides
+     * which of two equally good matches wins. Adding one is adding it here.
      */
     private val providers = listOf(DeezerProvider, ItunesProvider)
 
-    /** Id to brand name, in lookup order. Fills the catalogue picker of the manual search. */
+    /** Id to brand name, in priority order. Fills the catalogue picker of the manual search. */
     val catalogues: List<Pair<String, String>> = providers.map { it.id to it.name }
 
     /**
      * Explicit search, used by the manual "artist + song" lookup. [providerId] narrows it to a
-     * single catalogue, null consults them all in order.
+     * single catalogue, null consults them all.
      */
     suspend fun search(
         artist: String,
         title: String,
         providerId: String? = null,
         limit: Int = MATCH_LIMIT
-    ): List<MusicMetadata> = withContext(Dispatchers.IO) {
-        val query = listOf(artist, title).filter { it.isNotBlank() }.joinToString(" ")
-        if (query.isBlank()) return@withContext emptyList()
-        val chosen = providerId?.let { id -> providers.filter { it.id == id } } ?: providers
-        chosen.firstNotNullOfOrNull { it.search(query, limit).ifEmpty { null } }.orEmpty()
-    }
+    ): List<MusicMetadata> = lookup(MusicQuery(artist, title, MusicMatcher.versionOf(title)), providerId, limit)
 
     /**
-     * Automatic lookup from the fetched video info. Tries every parsed candidate and
-     * enriches the results with featuring artists mentioned in the original title.
+     * Automatic lookup from the fetched video info. Enriches the results with featuring artists
+     * mentioned in the original title.
+     *
+     * The parsed candidates are tried in order, but only until one of them is answered
+     * convincingly: a second reading of the title is worth a request only while the first one
+     * left the song in doubt.
      */
     suspend fun searchFromVideo(videoTitle: String, uploader: String, limit: Int = MATCH_LIMIT): List<MusicMetadata> =
         withContext(Dispatchers.IO) {
-            buildSearchQueries(videoTitle, uploader)
-                .firstNotNullOfOrNull { (artist, title) ->
-                    search(artist, title, limit = limit).ifEmpty { null }
+            var best = emptyList<MusicMetadata>()
+            for (query in buildSearchQueries(videoTitle, uploader)) {
+                val matches = lookup(query, null, limit)
+                val top = matches.firstOrNull() ?: continue
+                if (best.isEmpty()) best = matches
+                if (MusicMatcher.score(query, top) >= MusicMatcher.CONFIDENT) {
+                    best = matches
+                    break
                 }
-                ?.map { enrichWithFeaturing(it, videoTitle) }
-                .orEmpty()
+            }
+            best.map { enrichWithFeaturing(it, videoTitle) }
         }
 
     /**
@@ -180,10 +194,31 @@ object MusicMetadataUtil {
      *
      * Used where there is no card to pick in: a download started before the video info landed
      * still has to end up tagged, and by the time it finishes the naming it was started from
-     * is finally known. Only one candidate is fetched, since nobody is there to choose.
+     * is finally known. The full result list is still ranked, since nobody is there to correct
+     * a catalogue that answered with the wrong rendition.
      */
     suspend fun resolveForVideo(videoTitle: String, uploader: String): MusicMetadata? =
-        searchFromVideo(videoTitle, uploader, limit = 1).firstOrNull()?.let { details(it) }
+        searchFromVideo(videoTitle, uploader).firstOrNull()?.let { details(it) }
+
+    /**
+     * One round of the lookup: every chosen catalogue is asked at the same time, so consulting
+     * them all costs the slowest one rather than the sum, and their answers are then ranked
+     * against [query] together.
+     */
+    private suspend fun lookup(
+        query: MusicQuery,
+        providerId: String?,
+        limit: Int
+    ): List<MusicMetadata> = withContext(Dispatchers.IO) {
+        val text = query.text()
+        if (text.isBlank()) return@withContext emptyList()
+
+        val chosen = providerId?.let { id -> providers.filter { it.id == id } } ?: providers
+        val results = coroutineScope {
+            chosen.map { async { it.search(text, limit) } }.awaitAll()
+        }
+        MusicMatcher.rank(query, results, limit)
+    }
 
     /**
      * Fills in the extended tags the search results left out. Runs for a single match, the one

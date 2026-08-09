@@ -7,7 +7,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
 /**
- * Deezer, the primary catalogue: it covers non english releases well and needs no key.
+ * Deezer, the primary catalogue: it covers non english releases well and needs no key, so it
+ * wins whenever another catalogue answers the query just as well.
  *
  * Its search endpoint only carries the song, the artist, the ISRC and the album cover. The
  * release year and the track numbering live on the track resource, the genre, the label and
