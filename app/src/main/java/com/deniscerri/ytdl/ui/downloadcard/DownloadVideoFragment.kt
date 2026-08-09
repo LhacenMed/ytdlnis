@@ -550,6 +550,17 @@ class DownloadVideoFragment(private var resultItem: ResultItem? = null, private 
         }
     }
 
+    /**
+     * The tab stops being the one on screen, either for another tab or because the card is
+     * closing, so whatever it is configured with is now the last video configuration.
+     */
+    override fun onPause() {
+        super.onPause()
+        if (::downloadItem.isInitialized) {
+            LastUsedDownloadSettings.remember(preferences, downloadItem)
+        }
+    }
+
     override fun updateTitleAuthor(t: String, a: String){
         downloadItem.title = t
         downloadItem.author = a

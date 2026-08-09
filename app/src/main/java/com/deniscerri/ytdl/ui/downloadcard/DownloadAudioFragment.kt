@@ -433,6 +433,17 @@ class DownloadAudioFragment(private var resultItem: ResultItem? = null, private 
     }
 
     /**
+     * The tab stops being the one on screen, either for another tab or because the card is
+     * closing, so whatever it is configured with is now the last audio configuration.
+     */
+    override fun onPause() {
+        super.onPause()
+        if (::downloadItem.isInitialized) {
+            LastUsedDownloadSettings.remember(preferences, downloadItem)
+        }
+    }
+
+    /**
      * Music mode: resolves the real song info for the fetched video and keeps it on the
      * download item, so the worker can tag and name the finished file with it.
      */

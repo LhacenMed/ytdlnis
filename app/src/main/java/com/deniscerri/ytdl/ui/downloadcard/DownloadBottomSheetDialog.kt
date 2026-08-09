@@ -202,28 +202,22 @@ class DownloadBottomSheetDialog : BottomSheetDialogFragment() {
         viewPager2.adapter = fragmentAdapter
         viewPager2.isSaveFromParentEnabled = false
 
+        /*
+         * The tab the card belongs on, settled before the first layout pass so the pager lays
+         * out on it directly. Picking it afterwards would show the first tab for a frame and
+         * then jump, which reads as the card changing its mind about the last used type.
+         */
+        val startTab = when(type) {
+            DownloadType.audio -> 0
+            DownloadType.video -> if (isAudioOnly) 0 else 1
+            else -> 2
+        }
+        tabLayout.getTabAt(startTab)!!.select()
+        viewPager2.setCurrentItem(startTab, false)
+
         view.post {
-            when(type) {
-                DownloadType.audio -> {
-                    tabLayout.getTabAt(0)!!.select()
-                    viewPager2.setCurrentItem(0, false)
-                }
-                DownloadType.video -> {
-                    if (isAudioOnly){
-                        tabLayout.getTabAt(0)!!.select()
-                        viewPager2.setCurrentItem(0, false)
-                        Toast.makeText(context, getString(R.string.audio_only_item), Toast.LENGTH_SHORT).show()
-                    }else{
-                        tabLayout.getTabAt(1)!!.select()
-                        viewPager2.setCurrentItem(1, false)
-                    }
-                }
-                else -> {
-                    tabLayout.getTabAt(2)!!.select()
-                    viewPager2.postDelayed( {
-                        viewPager2.setCurrentItem(2, false)
-                    }, 200)
-                }
+            if (type == DownloadType.video && isAudioOnly) {
+                Toast.makeText(context, getString(R.string.audio_only_item), Toast.LENGTH_SHORT).show()
             }
 
             //check if the item is coming from a text file
@@ -309,7 +303,7 @@ class DownloadBottomSheetDialog : BottomSheetDialogFragment() {
 
                 scheduleBtn.isEnabled = false
                 download.isEnabled = false
-                val item: DownloadItem = commitDownloadItem()
+                val item: DownloadItem = getDownloadItem()
                 item.status = DownloadRepository.Status.Scheduled.toString()
                 item.downloadStartTime = it.timeInMillis
                 if (item.videoPreferences.alsoDownloadAsAudio){
@@ -359,7 +353,7 @@ class DownloadBottomSheetDialog : BottomSheetDialogFragment() {
                 resultViewModel.cancelUpdateFormatsItemData()
                 scheduleBtn.isEnabled = false
                 download.isEnabled = false
-                val item: DownloadItem = commitDownloadItem()
+                val item: DownloadItem = getDownloadItem()
                 if (item.videoPreferences.alsoDownloadAsAudio){
                     val itemsToQueue = mutableListOf<DownloadItem>()
                     itemsToQueue.add(item)
@@ -391,7 +385,7 @@ class DownloadBottomSheetDialog : BottomSheetDialogFragment() {
             dd.setNegativeButton(getString(R.string.cancel)) { dialogInterface: DialogInterface, _: Int -> dialogInterface.cancel() }
             dd.setPositiveButton(getString(R.string.ok)) { _: DialogInterface?, _: Int ->
                 lifecycleScope.launch(Dispatchers.IO){
-                    downloadViewModel.putToSaved(commitDownloadItem())
+                    downloadViewModel.putToSaved(getDownloadItem())
                     dismiss()
                 }
             }
@@ -672,16 +666,6 @@ class DownloadBottomSheetDialog : BottomSheetDialogFragment() {
         return fragmentAdapter.getDownloadItem(selectedTabPosition)
     }
 
-    /**
-     * The item the user is committing to: whatever it was configured with becomes the starting
-     * point of the next download of that type. Browsing the card must not go through here.
-     */
-    private fun commitDownloadItem(selectedTabPosition: Int = tabLayout.selectedTabPosition) : DownloadItem {
-        return getDownloadItem(selectedTabPosition).also {
-            LastUsedDownloadSettings.save(sharedPreferences, it)
-        }
-    }
-
     private fun getAlsoAudioDownloadItem(finished: (it: DownloadItem) -> Unit) {
         try {
             val ff = fragmentAdapter.fragments[0] as DownloadAudioFragment
@@ -737,6 +721,9 @@ class DownloadBottomSheetDialog : BottomSheetDialogFragment() {
     }
 
     override fun onDismiss(dialog: DialogInterface) {
+        //the tab the card was left on, whether it was downloaded from or only configured
+        runCatching { LastUsedDownloadSettings.remember(sharedPreferences, getDownloadItem()) }
+
         lifecycleScope.launch {
             resultViewModel.cancelUpdateItemData()
             resultViewModel.cancelUpdateFormatsItemData()

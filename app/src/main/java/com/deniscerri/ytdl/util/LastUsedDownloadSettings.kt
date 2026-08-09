@@ -13,9 +13,10 @@ import com.google.gson.Gson
  * Remembers how the user configured their last download of each type and seeds the next one
  * with it, so the download card opens in the state it was left in.
  *
- * Stored as one snapshot per [DownloadType], plus the type itself so the card also reopens on
- * the tab that was last downloaded from. A snapshot is written only when a download is actually
- * committed: opening the card or swiping through its tabs is browsing, not a choice.
+ * Stored as one snapshot per [DownloadType], plus the type the card was last left on, so it
+ * also reopens on that tab. Both are written by [remember] alone, from the card itself, as soon
+ * as a tab stops being the one on screen: a configuration sticks whether or not a download
+ * followed it, and the tab the user walked away from is the tab they come back to.
  *
  * Only card level choices are kept: values that belong to a single video (cut sections, crop,
  * resolved music tags) and values that are a projection of the app settings (the filename
@@ -36,8 +37,16 @@ object LastUsedDownloadSettings {
         val video: VideoPreferences? = null
     )
 
-    /** Call when a download is committed, never when the card is merely opened or browsed. */
-    fun save(preferences: SharedPreferences, item: DownloadItem) {
+    /**
+     * Keeps [item] as the starting point of the next download: its configuration, and its type
+     * as the tab to reopen on.
+     *
+     * Called from the card itself whenever a tab stops being the one on screen, so a choice is
+     * kept the moment it is made rather than only when a download follows it. Types that carry
+     * no snapshot, like a command download, are left alone.
+     */
+    fun remember(preferences: SharedPreferences, item: DownloadItem) {
+        if (item.type != DownloadType.audio && item.type != DownloadType.video) return
         val snapshot = Snapshot(
             website = item.website,
             container = item.container,
