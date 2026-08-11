@@ -46,6 +46,7 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.deniscerri.ytdl.MainActivity
+import com.deniscerri.ytdl.core.RuntimeManager
 import com.deniscerri.ytdl.R
 import com.deniscerri.ytdl.database.enums.DownloadType
 import com.deniscerri.ytdl.database.models.ResultItem
@@ -715,6 +716,15 @@ class HomeFragment : Fragment(), HomeAdapter.OnItemClickListener, SearchSuggesti
     }
 
     private fun startSearch() {
+        // Nothing past this point runs without the interpreter. Prompting here keeps the cost to a
+        // boolean check on the common path, and ensurePackages only calls back once it is available,
+        // so the search resumes on its own instead of asking the user to retype the query.
+        val main = activity as? MainActivity
+        if (main != null && !RuntimeManager.isReady) {
+            main.ensurePackages { startSearch() }
+            return
+        }
+
         lifecycleScope.launch(Dispatchers.IO){
             resultViewModel.deleteAll()
             if(sharedPreferences!!.getBoolean("quick_download", false) || sharedPreferences!!.getString("preferred_download_type", "video") == "command"){

@@ -31,6 +31,7 @@ abstract class PackageBase {
     protected abstract val githubRepo: String  // e.g deniscerri/ytdlnis-packages
     protected abstract val githubPackageName: String  // e.g ffmpeg
     abstract val apkPackage: String // e.g. com.deniscerri.ytdl.ffmpeg
+    open val isRequired: Boolean = false  // true if the app cannot run a single command without it
     fun getInstance(): PackageBase = this
 
     abstract val bundledVersion: String?

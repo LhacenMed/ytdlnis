@@ -225,6 +225,23 @@ object RuntimeManager {
 
     class CanceledException : Exception()
 
+    /**
+     * A package the app cannot run without is not installed. Carries the title so callers can name
+     * it without reaching back into the package list.
+     */
+    class MissingPackageException(val packageTitle: String) : Exception("$packageTitle is not installed")
+
+    /**
+     * Required packages that are not installed yet. Empty before init, which keeps [isReady] false
+     * until the real state is known rather than reporting a premature "ready".
+     */
+    val missingRequired: List<PackageItem>
+        get() = if (!initialized) emptyList()
+                else packages.filter { it.plugin.isRequired && !it.plugin.location.isAvailable }
+
+    /** Everything needed to run a command is present. */
+    val isReady: Boolean get() = initialized && missingRequired.isEmpty()
+
     fun execute(
         request: YTDLRequest,
         processId: String? = null,
@@ -234,6 +251,11 @@ object RuntimeManager {
     ) : ExecuteResponse {
         assertInit()
         assertNoUpdate()
+
+        // Single choke point for every yt-dlp invocation (workers, terminal, updater, extractors).
+        // Failing here means a missing interpreter surfaces as a named, catchable cause instead of
+        // an opaque IOException from ProcessBuilder.
+        missingRequired.firstOrNull()?.let { throw MissingPackageException(it.title) }
 
         if (processId != null && idProcessMap.containsKey(processId)) {
             throw ExecuteException("Process ID already exists")

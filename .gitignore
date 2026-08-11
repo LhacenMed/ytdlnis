@@ -9,7 +9,12 @@
 .externalNativeBuild
 /benchmark
 *.png
-app/src/main/jniLibs
+# jniLibs stays out of the repo, except QuickJS: it is bundle-only (no release to download from)
+# and was lost when the :library AAR went away, so the binary has to live here to survive a clean
+# checkout. Directories are re-included so git can descend far enough to reach it.
+app/src/main/jniLibs/**
+!app/src/main/jniLibs/**/
+!app/src/main/jniLibs/*/libqjs.so
 /ytdlnis-keystore
 *.jks
 *.keystore

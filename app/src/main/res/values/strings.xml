@@ -519,6 +519,10 @@
     <string name="packages">Packages</string>
     <string name="not_installed">Not installed</string>
     <string name="bundled">Bundled</string>
+    <string name="install">Install</string>
+    <string name="package_required_title">%1$s is required</string>
+    <string name="package_required_desc">%1$s is not installed yet. It downloads once and is kept until you remove it.</string>
+    <string name="package_unavailable">No build available for this device</string>
     <string name="use_app_language_for_metadata_summary">If enabled, metadata fields will follow your app language and even affect format selection by preferring dubbed versions instead of original</string>
     <string name="installed">Installed</string>
     <string name="auto_update_ytdlp_summary">It\'s recommended to keep this enabled as yt-dlp needs to be updated pretty often to stay working! The data is extracted from yt-dlp\'s GitHub Repository.</string>

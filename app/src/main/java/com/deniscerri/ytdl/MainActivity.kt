@@ -46,6 +46,7 @@ import androidx.preference.PreferenceManager
 import com.afollestad.materialdialogs.utils.MDUtil.getStringArray
 import com.afollestad.materialdialogs.utils.MDUtil.textChanged
 import com.anggrayudi.storage.file.getAbsolutePath
+import com.deniscerri.ytdl.core.PackageGate
 import com.deniscerri.ytdl.core.RuntimeManager
 import com.deniscerri.ytdl.database.DBManager
 import com.deniscerri.ytdl.database.enums.DownloadType
@@ -595,6 +596,22 @@ class MainActivity : BaseActivity() {
 
     private var installPackageLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         RuntimeManager.reInit(this)
+    }
+
+    /**
+     * Runs [onReady] once the runtime can execute commands, prompting to install what is missing
+     * first. Lives here because the activity already owns [installPackageLauncher] and the views the
+     * install flow anchors to; fragments call it instead of registering launchers of their own.
+     */
+    fun ensurePackages(onReady: () -> Unit) {
+        PackageGate.ensure(
+            this,
+            this,
+            findViewById(R.id.frame_layout),
+            navigationBarView,
+            installPackageLauncher,
+            onReady
+        )
     }
 
     // The app's own updates are handled by [checkForAppUpdate] and [UpdateGate]; what is left here

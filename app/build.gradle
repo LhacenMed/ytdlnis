@@ -204,15 +204,21 @@ dependencies {
 //    implementation "com.github.yausername.youtubedl-android:aria2c:$youtubedlAndroidVer"
 
 
-    implementation "io.github.junkfood02.youtubedl-android:library:0.18.1"
+    /*
+     Python and FFmpeg are no longer bundled. Their AARs carried nothing but native payloads
+     (~30 MB per ABI) and the runtime layer here is a full fork, so no code is lost by dropping
+     them. Both now install on demand as standalone package APKs from the releases in
+     `deniscerri/ytdlnis-packages`; PackageBase resolves either source transparently.
 
-    //implementation "io.github.junkfood02.youtubedl-android:ffmpeg:0.18.1"
+     Two pieces that used to ride along inside :library are vendored instead, because neither has
+     a download path:
+       - res/raw/ytdlp   the yt-dlp zipapp, still updated in place by YTDLUpdater
+       - jniLibs/libqjs.so   QuickJS, bundle-only by design (no githubRepo/apkPackage) and
+                             self-contained (needs only libm/libdl/libc), so it costs ~0.4 MB
+     Aria2c stays bundled: the packages repo publishes no aria2c release, so unbundling it would
+     strand the feature with no way back.
+    */
     implementation "io.github.junkfood02.youtubedl-android:aria2c:0.18.1"
-
-//    implementation "io.github.junkfood02.youtubedl-android:library:0.17.4"
-    //noinspection NewerVersionAvailable
-    implementation "io.github.junkfood02.youtubedl-android:ffmpeg:0.17.2"
-//    implementation "io.github.junkfood02.youtubedl-android:aria2c:0.17.2"
 
     implementation "androidx.appcompat:appcompat:1.7.1"
     implementation "androidx.constraintlayout:constraintlayout:2.2.1"
