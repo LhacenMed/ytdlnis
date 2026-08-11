@@ -2819,7 +2819,7 @@ object UiUtil {
 
             tmpDownloadJob = lifecycleScope.launch {
                 val instance = packageItem.getInstance()
-                val fileResp = instance.downloadReleaseApk(item) { progress ->
+                val fileResp = instance.downloadReleaseApk(context, item) { progress ->
                     lifecycleScope.launch {
                         withContext(Dispatchers.Main) {
                             positiveButton.text = "$progress%"

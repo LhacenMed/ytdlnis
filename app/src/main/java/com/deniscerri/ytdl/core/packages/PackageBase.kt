@@ -1,19 +1,17 @@
 package com.deniscerri.ytdl.core.packages
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
-import android.os.Environment
 import androidx.core.content.edit
 import androidx.preference.PreferenceManager
+import com.deniscerri.ytdl.R
 import com.deniscerri.ytdl.core.RuntimeManager
 import com.deniscerri.ytdl.core.ZipUtils
 import com.deniscerri.ytdl.database.models.GithubReleaseAsset
-import com.deniscerri.ytdl.util.FileUtil
 import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -75,6 +73,8 @@ abstract class PackageBase {
     lateinit var location: PackageLocation
 
     companion object {
+        private const val BUFFER_SIZE = 65_536
+
         val sharedClient: OkHttpClient by lazy {
             OkHttpClient.Builder()
                 .build()
@@ -187,45 +187,76 @@ abstract class PackageBase {
         )
     }
 
-    @SuppressLint("UnspecifiedRegisterReceiverFlag", "Range")
-    suspend fun downloadReleaseApk(release: PackageRelease, onProgress: (Long) -> Unit) : Result<File> {
-        return withContext(Dispatchers.IO) {
-            try {
-                File(FileUtil.getDefaultApksPath()).mkdirs()
-                val tempApk = File(FileUtil.getDefaultApksPath(), "${packageFolderName}_${release.version.replace(".", "")}.apk")
+    /** Where [downloadReleaseApk] stages this package. Stable name, so a retry overwrites the last attempt. */
+    private fun apkFile(context: Context): File =
+        File(context.cacheDir, "packages").apply { mkdirs() }.resolve("$packageFolderName.apk")
 
+    /**
+     * Streams this release's APK for the device's ABI and returns it for the installer to consume.
+     *
+     * It lands in cacheDir, matching [com.deniscerri.ytdl.update.ApkDownloader]. The public Downloads
+     * folder cannot be written directly from Android 10 onward without storage permission, which is
+     * where the EACCES came from; and shared storage bought nothing here, because the file is a
+     * transient artifact the system installer reads once. The cache needs no permission, is already
+     * exported through provider_paths.xml, and is reclaimed on its own if the install never happens.
+     */
+    suspend fun downloadReleaseApk(context: Context, release: PackageRelease, onProgress: (Long) -> Unit) : Result<File> {
+        return withContext(Dispatchers.IO) {
+            val asset = release.assets.firstOrNull()
+                ?: return@withContext Result.failure(Throwable(context.getString(R.string.package_unavailable)))
+
+            val apk = apkFile(context)
+            // A partial file from a cancelled attempt must never reach the installer.
+            apk.delete()
+
+            try {
                 val request = Request.Builder()
-                    .url(release.assets.first().browser_download_url)
+                    .url(asset.browser_download_url)
                     .build()
 
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).mkdirs()
                 val response = sharedClient.newCall(request).execute()
                 if (!response.isSuccessful) {
                     return@withContext Result.failure(Throwable(response.body.string()))
                 }
 
-                val body = response.body
-                val totalBytes = body.contentLength()
-                var bytesDownloaded = 0L
+                response.use {
+                    val body = it.body
+                    // -1 on a chunked response; guarding it keeps the percentage off a zero divisor.
+                    val totalBytes = body.contentLength().takeIf { len -> len > 0 }
+                    var received = 0L
+                    var lastPercent = -1L
 
-                body.byteStream().use { inputStream ->
-                    tempApk.outputStream().use { outputStream ->
-                        val buffer = ByteArray(8192)
-                        var bytesRead: Int
+                    body.byteStream().use { input ->
+                        apk.outputStream().use { output ->
+                            val buffer = ByteArray(BUFFER_SIZE)
+                            var read: Int
 
-                        while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-                            if (!isActive) throw CancellationException("Download cancelled by user")
+                            while (input.read(buffer).also { n -> read = n } != -1) {
+                                ensureActive()
+                                output.write(buffer, 0, read)
+                                received += read
 
-                            outputStream.write(buffer, 0, bytesRead)
-                            bytesDownloaded += bytesRead
-                            val progress = ((bytesDownloaded * 100) / totalBytes)
-                            onProgress(progress)
+                                if (totalBytes != null) {
+                                    val percent = received * 100 / totalBytes
+                                    // Each callback hops to the main thread to retitle the button,
+                                    // so report only when the number actually changes: 100 hops for
+                                    // a 30 MB package instead of one per 64 KB read.
+                                    if (percent != lastPercent) {
+                                        lastPercent = percent
+                                        onProgress(percent)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
 
-                Result.success(tempApk)
+                Result.success(apk)
+            } catch (e: CancellationException) {
+                apk.delete()
+                throw e
             } catch (e: Exception) {
+                apk.delete()
                 Result.failure(e)
             }
         }
@@ -282,10 +313,13 @@ abstract class PackageBase {
                             // e.g. nodejs-1.0.0-arm64-v8a
                             it.version = it.tag_name.split("-")[1]
                             it.assets = it.assets.filter { a -> a.name.contains(supportedArch) }
-                            it.downloadSize = it.assets.first().size
+                            it.downloadSize = it.assets.firstOrNull()?.size ?: 0
                             it.isInstalled = downloadedVersion == "v${it.version}"
                             it.isBundled = bundledVersion == "v${it.version}"
                         }
+                        // Not every release is built for every ABI (deno ships no armeabi-v7a).
+                        // Dropping the empty ones keeps assets.first() safe on the download path.
+                        .filter { it.assets.isNotEmpty() }
 
                     Result.success(releases)
                 } else {
