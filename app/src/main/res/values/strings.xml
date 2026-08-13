@@ -601,6 +601,11 @@
     <string name="choose_image">Choose image</string>
     <string name="use_this_cover">Use this cover</string>
     <string name="search_cover_art">Search cover art</string>
+    <string name="lyrics">Lyrics</string>
+    <string name="lyrics_source">Lyrics source</string>
+    <string name="lyrics_none">Nothing written yet</string>
+    <string name="lyrics_lines">%1$d lines</string>
+    <string name="lyrics_timed_lines">%1$d timed lines</string>
 
     <!-- In-app update -->
     <string name="update_title">Update available</string>

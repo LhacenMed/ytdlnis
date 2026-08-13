@@ -85,6 +85,7 @@ object MusicTagUtil {
         tag.write(FieldKey.TRACK_TOTAL, metadata.trackTotal)
         tag.write(FieldKey.DISC_NO, metadata.discNumber)
         tag.write(FieldKey.ISRC, metadata.isrc)
+        tag.write(FieldKey.LYRICS, metadata.lyrics)
         cover?.let {
             tag.deleteArtworkField()
             tag.setField(ArtworkFactory.createArtworkFromFile(it))

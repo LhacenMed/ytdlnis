@@ -36,6 +36,7 @@ data class MusicMetadata(
     var trackTotal: String = "",
     var discNumber: String = "",
     var isrc: String = "",
+    var lyrics: String = "",
     var coverUrl: String = "",
     var source: MusicSource? = null
 ) : Parcelable {

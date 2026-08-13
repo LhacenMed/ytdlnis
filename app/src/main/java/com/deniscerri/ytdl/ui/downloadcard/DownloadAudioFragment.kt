@@ -473,9 +473,9 @@ class DownloadAudioFragment(private var resultItem: ResultItem? = null, private 
             },
             onMatchSelected = { index -> musicViewModel.select(index) },
             onCoverClicked = { metadata -> coverDialog.show(metadata) },
-            onSearchRequested = { artist, song, providerId ->
+            onSearchRequested = { search ->
                 downloadItem.audioPreferences.musicMetadata = null
-                musicViewModel.search(artist, song, providerId)
+                musicViewModel.search(search)
             }
         )
 

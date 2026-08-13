@@ -10,11 +10,14 @@ import androidx.core.view.setPadding
 import com.deniscerri.ytdl.R
 import com.deniscerri.ytdl.database.models.MusicMetadata
 import com.deniscerri.ytdl.util.MusicCoverUtil
+import com.deniscerri.ytdl.util.extractors.music.LyricsUtil
 import com.deniscerri.ytdl.util.extractors.music.MusicMetadataUtil
+import com.deniscerri.ytdl.util.extractors.music.MusicSearch
 import com.google.android.material.chip.Chip
 import com.facebook.shimmer.ShimmerFrameLayout
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.imageview.ShapeableImageView
+import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.textfield.MaterialAutoCompleteTextView
 import com.google.android.material.textfield.TextInputLayout
 
@@ -35,7 +38,7 @@ class MusicMetadataCard(
     private val onMetadataChanged: (metadata: MusicMetadata, byUser: Boolean) -> Unit,
     private val onMatchSelected: (index: Int) -> Unit,
     private val onCoverClicked: (metadata: MusicMetadata) -> Unit,
-    private val onSearchRequested: (artist: String, song: String, providerId: String?) -> Unit
+    private val onSearchRequested: (search: MusicSearch) -> Unit
 ) {
     private val context: Context = root.context
 
@@ -46,6 +49,10 @@ class MusicMetadataCard(
     private val matchesChip: Chip = root.findViewById(R.id.music_matches)
     private val searchChip: Chip = root.findViewById(R.id.music_manual_search)
     private val detailsChip: Chip = root.findViewById(R.id.music_details)
+    private val lyricsInput: EditText = input(root, R.id.music_lyrics_textinput)
+
+    /** Built on first use: most songs are downloaded without their lyrics ever being opened. */
+    private val lyricsDialog by lazy { LyricsDialog(context) { setLyrics(it) } }
 
     private var matches: List<MusicMetadata> = emptyList()
     private var selectedMatch = 0
@@ -78,9 +85,17 @@ class MusicMetadataCard(
         searchChip.setOnClickListener { showSearchDialog() }
         detailsChip.setOnClickListener { showExtra(!extraShown) }
         cover.setOnClickListener { onCoverClicked(current.copy()) }
+        lyricsInput.setOnClickListener { lyricsDialog.show(current.lyrics) }
         showExtra(false)
         //shimmer auto starts on inflation, the card is at rest until a lookup says otherwise
         showCoverLoading(false)
+    }
+
+    /** Replaces the lyrics with the ones the user wrote, which are theirs to keep. */
+    private fun setLyrics(lyrics: String) {
+        current.lyrics = lyrics
+        showLyrics(lyrics)
+        onMetadataChanged(current.copy(), true)
     }
 
     /** Replaces the artwork with one the user chose themselves, which is theirs to keep. */
@@ -140,6 +155,7 @@ class MusicMetadataCard(
         binding = true
         current = metadata.copy()
         fields.forEach { it.show(metadata) }
+        showLyrics(metadata.lyrics)
         loadCover(metadata.coverUrl)
         binding = false
         //rendered state is never the users own, only typing in a field is
@@ -149,6 +165,22 @@ class MusicMetadataCard(
     /** The artwork is the last thing to arrive, so it shimmers for as long as the lookup runs. */
     private fun showCoverLoading(loading: Boolean) {
         if (loading) coverShimmer.showShimmer(true) else coverShimmer.hideShimmer()
+    }
+
+    /**
+     * The line stands for the lyrics rather than showing them: what a user needs to know at a
+     * glance is whether there are any and whether they follow the song, which a first line of
+     * the text itself would not say.
+     */
+    private fun showLyrics(lyrics: String) {
+        lyricsInput.setText(
+            when {
+                lyrics.isBlank() -> ""
+                LyricsUtil.isTimed(lyrics) ->
+                    context.getString(R.string.lyrics_timed_lines, LyricsUtil.lineCount(lyrics))
+                else -> context.getString(R.string.lyrics_lines, LyricsUtil.lineCount(lyrics))
+            }
+        )
     }
 
     private fun loadCover(url: String) {
@@ -192,15 +224,35 @@ class MusicMetadataCard(
         providerInput.setText(context.getString(R.string.all_sources), false)
         providerInput.setOnItemClickListener { _, _, index, _ -> provider = index }
 
+        //the lyrics sources, offered the same way and only while they are being looked up
+        val lyricsIds = listOf(null) + LyricsUtil.sources.map { (id, _) -> id }
+        val lyricsSwitch = view.findViewById<MaterialSwitch>(R.id.music_search_lyrics)
+        val lyricsSourceLayout = view.findViewById<TextInputLayout>(R.id.music_search_lyrics_source)
+        val lyricsInput = lyricsSourceLayout.editText as MaterialAutoCompleteTextView
+        lyricsInput.setSimpleItems(
+            (listOf(context.getString(R.string.all_sources)) + LyricsUtil.sources.map { (_, name) -> name })
+                .toTypedArray()
+        )
+        var lyricsSource = 0
+        lyricsInput.setText(context.getString(R.string.all_sources), false)
+        lyricsInput.setOnItemClickListener { _, _, index, _ -> lyricsSource = index }
+
+        lyricsSourceLayout.isVisible(lyricsSwitch.isChecked)
+        lyricsSwitch.setOnCheckedChangeListener { _, checked -> lyricsSourceLayout.isVisible(checked) }
+
         MaterialAlertDialogBuilder(context)
             .setTitle(R.string.search_song)
             .setView(view)
             .setNegativeButton(R.string.cancel, null)
             .setPositiveButton(R.string.search) { _, _ ->
                 onSearchRequested(
-                    artistInput.text.toString().trim(),
-                    songInput.text.toString().trim(),
-                    providerIds[provider]
+                    MusicSearch(
+                        artist = artistInput.text.toString().trim(),
+                        song = songInput.text.toString().trim(),
+                        catalogueId = providerIds[provider],
+                        withLyrics = lyricsSwitch.isChecked,
+                        lyricsSourceId = lyricsIds[lyricsSource]
+                    )
                 )
             }
             .show()

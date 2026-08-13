@@ -312,6 +312,26 @@
 
             </com.google.android.material.textfield.TextInputLayout>
 
+            <!-- Too long to edit in a line, so the line says what there is and opens the editor -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/music_lyrics_textinput"
+                style="@style/Widget.App.TextInputLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:hint="@string/lyrics">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/music_lyrics"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:cursorVisible="false"
+                    android:focusable="false"
+                    android:inputType="none"
+                    android:maxLines="1" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
         </LinearLayout>
 
     </LinearLayout>

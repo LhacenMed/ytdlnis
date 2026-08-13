@@ -1,6 +1,7 @@
 package com.deniscerri.ytdl.util.extractors.music
 
 import android.util.Log
+import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import okhttp3.OkHttpClient
@@ -32,6 +33,11 @@ object MusicHttp {
     /** The parsed response body, or null when the request, the response or the parsing failed. */
     fun json(url: String): JsonObject? = runCatching {
         JsonParser.parseString(get(url) ?: return null).asJsonObject
+    }.getOrElse { Log.w(TAG, "Parsing failed: $url", it); null }
+
+    /** The parsed response, for the endpoints that answer with a list rather than a record. */
+    fun jsonArray(url: String): JsonArray? = runCatching {
+        JsonParser.parseString(get(url) ?: return null).asJsonArray
     }.getOrElse { Log.w(TAG, "Parsing failed: $url", it); null }
 
     fun bytes(url: String): ByteArray? = runCatching {

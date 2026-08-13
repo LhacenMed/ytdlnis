@@ -54,4 +54,29 @@
 
     </com.google.android.material.textfield.TextInputLayout>
 
+    <!-- The lyrics are looked up by the same search, from sources of their own -->
+    <com.google.android.material.materialswitch.MaterialSwitch
+        android:id="@+id/music_search_lyrics"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:checked="true"
+        android:text="@string/lyrics" />
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/music_search_lyrics_source"
+        style="@style/Widget.App.TextInputLayout.Dropdown"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:hint="@string/lyrics_source">
+
+        <com.google.android.material.textfield.MaterialAutoCompleteTextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="none"
+            android:maxLines="1" />
+
+    </com.google.android.material.textfield.TextInputLayout>
+
 </LinearLayout>
