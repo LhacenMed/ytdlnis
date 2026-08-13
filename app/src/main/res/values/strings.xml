@@ -600,6 +600,7 @@
     <string name="all_sources">All sources</string>
     <string name="choose_image">Choose image</string>
     <string name="use_this_cover">Use this cover</string>
+    <string name="search_cover_art">Search cover art</string>
 
     <!-- In-app update -->
     <string name="update_title">Update available</string>

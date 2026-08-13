@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The grid as it will look, before it can be filled: the results land in the shape the
+     loading already drew, so nothing on screen moves when they do -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <View style="@style/CoverSearchTile" />
+
+        <View style="@style/CoverSearchTile" />
+
+        <View style="@style/CoverSearchTile" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <View style="@style/CoverSearchTile" />
+
+        <View style="@style/CoverSearchTile" />
+
+        <View style="@style/CoverSearchTile" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <View style="@style/CoverSearchTile" />
+
+        <View style="@style/CoverSearchTile" />
+
+        <View style="@style/CoverSearchTile" />
+
+    </LinearLayout>
+
+</LinearLayout>

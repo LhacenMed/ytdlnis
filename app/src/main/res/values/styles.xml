@@ -129,4 +129,13 @@
         <item name="boxStrokeWidthFocused">0dp</item>
     </style>
 
+    <!-- One placeholder of the cover search grid, shaped like the result that replaces it -->
+    <style name="CoverSearchTile">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">110dp</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:layout_margin">4dp</item>
+        <item name="android:background">@drawable/cover_tile_placeholder</item>
+    </style>
+
 </resources>

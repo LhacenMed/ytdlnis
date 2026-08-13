@@ -38,11 +38,24 @@ object MusicHttp {
         call(url).use { if (it.isSuccessful) it.body.bytes() else null }
     }.getOrElse { Log.w(TAG, "Download failed: $url", it); null }
 
-    private fun get(url: String): String? = runCatching {
-        call(url).use { if (it.isSuccessful) it.body.string() else null }
+    /**
+     * The raw page, for the sources that answer in HTML rather than JSON.
+     *
+     * [headers] are for what those sources need to answer at all, a browser user agent or a
+     * consent cookie: they replace the defaults, so the caller decides how it wants to look.
+     */
+    fun html(url: String, headers: Map<String, String> = emptyMap()): String? = get(url, headers)
+
+    private fun get(url: String, headers: Map<String, String> = emptyMap()): String? = runCatching {
+        call(url, headers).use { if (it.isSuccessful) it.body.string() else null }
     }.getOrElse { Log.w(TAG, "Request failed: $url", it); null }
 
-    private fun call(url: String) = client
-        .newCall(Request.Builder().url(url).header("User-Agent", USER_AGENT).build())
+    private fun call(url: String, headers: Map<String, String> = emptyMap()) = client
+        .newCall(
+            Request.Builder().url(url)
+                .header("User-Agent", USER_AGENT)
+                .apply { headers.forEach { (name, value) -> header(name, value) } }
+                .build()
+        )
         .execute()
 }

@@ -34,7 +34,7 @@ class MusicMetadataCard(
     private val root: View,
     private val onMetadataChanged: (metadata: MusicMetadata, byUser: Boolean) -> Unit,
     private val onMatchSelected: (index: Int) -> Unit,
-    private val onCoverClicked: (cover: String) -> Unit,
+    private val onCoverClicked: (metadata: MusicMetadata) -> Unit,
     private val onSearchRequested: (artist: String, song: String, providerId: String?) -> Unit
 ) {
     private val context: Context = root.context
@@ -77,7 +77,7 @@ class MusicMetadataCard(
         matchesChip.setOnClickListener { showMatchPicker() }
         searchChip.setOnClickListener { showSearchDialog() }
         detailsChip.setOnClickListener { showExtra(!extraShown) }
-        cover.setOnClickListener { onCoverClicked(current.coverUrl) }
+        cover.setOnClickListener { onCoverClicked(current.copy()) }
         showExtra(false)
         //shimmer auto starts on inflation, the card is at rest until a lookup says otherwise
         showCoverLoading(false)
