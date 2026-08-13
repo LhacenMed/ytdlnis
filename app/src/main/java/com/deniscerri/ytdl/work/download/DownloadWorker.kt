@@ -55,7 +55,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.security.MessageDigest
 import java.util.Locale
 
 
@@ -414,10 +413,10 @@ class DownloadWorker(
                         }
                         if (this@DownloadWorker.isStopped) return@onFailure
                         if (it is RuntimeManager.CanceledException) return@onFailure
-                        if (it.message?.contains("JSONDecodeError") == true) {
-                            val cachePath = FileUtil.getInfoJsonPath(context)
-                            val infoJsonName = MessageDigest.getInstance("MD5").digest(downloadItem.url.toByteArray()).toHexString()
-                            FileUtil.deleteFile("${cachePath}/${infoJsonName}.info.json")
+                        //a cached info json that cannot be read, or whose media urls no longer
+                        //work, is what failed here: dropping it is what lets a retry re-extract
+                        if (STALE_INFO_JSON_ERRORS.any { error -> it.message?.contains(error, ignoreCase = true) == true }) {
+                            ytdlpUtil.deleteInfoJson(downloadItem.url)
                         }
 
                         if (logDownloads){
@@ -491,6 +490,17 @@ class DownloadWorker(
     companion object {
         val runningYTDLInstances: MutableList<Long> = mutableListOf()
         const val TAG = "DownloadWorker"
+
+        /**
+         * What a download says when it failed on the cached info json rather than on the item:
+         * a file that cannot be parsed, or media urls the host has since stopped serving.
+         */
+        private val STALE_INFO_JSON_ERRORS = listOf(
+            "JSONDecodeError",
+            "HTTP Error 403",
+            "HTTP Error 410",
+            "unable to download video data"
+        )
     }
 
     class WorkerProgress(

@@ -661,6 +661,18 @@ class YTDLPUtil(private val context: Context, private val commandTemplateDao: Co
         return crc.value.toString(16) // 8 hex chars max
     }
 
+    /**
+     * Drops the cached info json of [url], so the next attempt extracts the item again.
+     *
+     * What a cached info json carries is the media urls of the moment it was written, and they
+     * expire long before the file does. A download that failed on them cannot succeed on them
+     * either, so the file is the failure: keeping it would make the next attempt repeat this
+     * one, which is the difference between a download that failed once and one that is stuck.
+     */
+    fun deleteInfoJson(url: String) {
+        getInfoJsonFile(url)?.delete()
+    }
+
     @OptIn(ExperimentalStdlibApi::class)
     private fun getInfoJsonFile(url: String): File? {
         val cachePath = FileUtil.getInfoJsonPath(context)
