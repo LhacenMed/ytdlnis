@@ -22,31 +22,6 @@
             android:layout_marginTop="20dp"
             android:orientation="horizontal">
 
-            <com.facebook.shimmer.ShimmerFrameLayout
-                android:visibility="gone"
-                android:layout_width="0dp"
-                android:layout_marginTop="4dp"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="20dp"
-                app:layout_constraintEnd_toStartOf="@+id/bottomsheet_music_button"
-                app:layout_constraintHorizontal_bias="0.0"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                android:id="@+id/shimmer_loading_title"
-                android:orientation="vertical">
-
-                <TextView
-                    android:id="@+id/bottom_sheet_loading_title"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:maxLines="2"
-                    android:singleLine="false"
-                    android:text="@string/loading"
-                    android:textSize="25sp" />
-
-            </com.facebook.shimmer.ShimmerFrameLayout>
-
-
             <TextView
                 android:id="@+id/bottom_sheet_title"
                 android:layout_width="0dp"
@@ -62,17 +37,6 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
-            <!-- The title is either the real one or the one that shimmers, and only one of them
-                 is ever laid out. The subtitle hangs off whichever that is, so it cannot land on
-                 top of the title when the two stop being shown and hidden together. -->
-            <androidx.constraintlayout.widget.Barrier
-                android:id="@+id/title_barrier"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                app:barrierAllowsGoneWidgets="false"
-                app:barrierDirection="bottom"
-                app:constraint_referenced_ids="shimmer_loading_title,bottom_sheet_title" />
-
             <com.facebook.shimmer.ShimmerFrameLayout
                 android:visibility="gone"
                 android:layout_width="0dp"
@@ -81,7 +45,7 @@
                 android:layout_marginEnd="20dp"
                 app:layout_constraintEnd_toStartOf="@+id/bottomsheet_music_button"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/title_barrier"
+                app:layout_constraintTop_toBottomOf="@+id/bottom_sheet_title"
                 android:id="@+id/shimmer_loading_subtitle"
                 android:orientation="vertical">
 
@@ -108,7 +72,7 @@
                 app:layout_constraintHorizontal_bias="0.0"
                 app:layout_constraintEnd_toStartOf="@+id/bottomsheet_music_button"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/title_barrier" />
+                app:layout_constraintTop_toBottomOf="@+id/bottom_sheet_title" />
 
             <Button
                 android:id="@+id/bottomsheet_music_button"

@@ -78,8 +78,6 @@ class DownloadBottomSheetDialog : BottomSheetDialogFragment() {
     private lateinit var sharedPreferences : SharedPreferences
     private lateinit var updateItem : Button
     private lateinit var view: View
-    private lateinit var shimmerLoading :ShimmerFrameLayout
-    private lateinit var title : View
     private lateinit var shimmerLoadingSubtitle : ShimmerFrameLayout
     private lateinit var subtitle : TextView
     private lateinit var loadingSubtitle : TextView
@@ -181,13 +179,12 @@ class DownloadBottomSheetDialog : BottomSheetDialogFragment() {
 
 
         //loading shimmers
-        shimmerLoading = view.findViewById(R.id.shimmer_loading_title)
-        title = view.findViewById(R.id.bottom_sheet_title)
         shimmerLoadingSubtitle = view.findViewById(R.id.shimmer_loading_subtitle)
         subtitle = view.findViewById(R.id.bottom_sheet_subtitle)
         loadingSubtitle = view.findViewById(R.id.bottom_sheet_loading_subtitle)
 
-        shimmerLoading.setOnClickListener {
+        //the subtitle is what is waiting, so cancelling the wait is offered on it
+        shimmerLoadingSubtitle.setOnClickListener {
             lifecycleScope.launch {
                 resultViewModel.cancelUpdateItemData()
                 (updateItem.parent as LinearLayout).visibility = View.VISIBLE
@@ -309,6 +306,8 @@ class DownloadBottomSheetDialog : BottomSheetDialogFragment() {
             override fun onPageSelected(position: Int) {
                 tabLayout.selectTab(tabLayout.getTabAt(position))
                 showMusicButtonFor(position)
+                //the song speaks for the audio tab alone, so the header follows the tab
+                renderStatus()
                 runCatching {
                     fragmentAdapter.updateWhenSwitching(viewPager2.currentItem)
                 }
@@ -731,7 +730,7 @@ class DownloadBottomSheetDialog : BottomSheetDialogFragment() {
         VideoFetch.Running -> CardStatus.FetchingVideo
         VideoFetch.Failed -> CardStatus.VideoFailed
         else -> when {
-            !musicViewModel.enabled.value -> CardStatus.Ready
+            !musicViewModel.enabled.value || viewPager2.currentItem != AUDIO_TAB -> CardStatus.Ready
             else -> when (musicViewModel.state.value) {
                 is MusicViewModel.SearchState.Waiting,
                 is MusicViewModel.SearchState.Loading -> CardStatus.SearchingSong
@@ -759,8 +758,8 @@ class DownloadBottomSheetDialog : BottomSheetDialogFragment() {
     }
 
     /**
-     * Draws the header for the current status: the title only shimmers while it is the unknown
-     * one, the subtitle always says what is being waited for and sweeps while it still is, and
+     * Draws the header for the current status: the title says what the sheet is for and stays
+     * saying it, the subtitle says what is being waited for and sweeps while it still is, and
      * the action button offers a retry instead of a download while the card is built on nothing.
      */
     private fun renderStatus() {
@@ -769,10 +768,6 @@ class DownloadBottomSheetDialog : BottomSheetDialogFragment() {
             val fetchingVideo = status == CardStatus.FetchingVideo
             val busy = fetchingVideo || status == CardStatus.SearchingSong
             val failed = status == CardStatus.VideoFailed || status == CardStatus.SongFailed
-
-            title.isVisible = !fetchingVideo
-            shimmerLoading.isVisible = fetchingVideo
-            if (fetchingVideo) shimmerLoading.startShimmer() else shimmerLoading.stopShimmer()
 
             subtitle.isVisible = !busy
             shimmerLoadingSubtitle.isVisible = busy

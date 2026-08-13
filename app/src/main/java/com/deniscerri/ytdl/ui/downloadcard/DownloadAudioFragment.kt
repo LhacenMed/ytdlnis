@@ -436,6 +436,12 @@ class DownloadAudioFragment(private var resultItem: ResultItem? = null, private 
         }
     }
 
+    /** The tab is the one on screen, which is when the song it is configured with is worth looking up. */
+    override fun onResume() {
+        super.onResume()
+        syncMusicLookup()
+    }
+
     /**
      * The tab stops being the one on screen, either for another tab or because the card is
      * closing, so whatever it is configured with is now the last audio configuration.
@@ -531,9 +537,14 @@ class DownloadAudioFragment(private var resultItem: ResultItem? = null, private 
     /**
      * Follows the video info, which is fetched after the card is built and can change again
      * when the item is updated. Does nothing until there is a real title to look up.
+     *
+     * Only the tab the user is on looks anything up. Every tab is built when the card opens,
+     * this one included, and a song is what the audio tab is configured with: looking one up
+     * for a card nobody is reading spends a request on it and says so in the header of a tab
+     * that has no song. Coming back to the tab is what starts it, from [onResume].
      */
     private fun syncMusicLookup() {
-        if (!::musicCard.isInitialized || !musicViewModel.enabled.value) return
+        if (!::musicCard.isInitialized || !musicViewModel.enabled.value || !isResumed) return
         musicViewModel.syncWithVideo(downloadItem.title, downloadItem.author, downloadItem.url)
     }
 
