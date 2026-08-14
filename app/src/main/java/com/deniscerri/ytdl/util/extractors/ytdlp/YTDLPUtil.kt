@@ -42,6 +42,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.util.concurrent.TimeUnit
 import java.lang.reflect.Type
 import java.util.Locale
 import java.util.StringJoiner
@@ -493,9 +494,8 @@ class YTDLPUtil(private val context: Context, private val commandTemplateDao: Co
             !sharedPreferences.getBoolean("disable_write_info_json", false) &&
                     !request.toString().contains("--download-sections")
         if (canUseWriteInfoJson) {
-            val infoJsonFile = getInfoJsonFile(url)
-            //ignore info file if its older than 5 hours. puny measure to prevent expired formats in some cases
-            if (infoJsonFile != null && System.currentTimeMillis() - infoJsonFile.lastModified() <= (1000 * 60 * 60 * 5)) {
+            val infoJsonFile = getUsableInfoJsonFile(url)
+            if (infoJsonFile != null) {
                 request.addOption("--load-info-json", infoJsonFile.absolutePath)
             }else {
                 request.addWriteInfoJson(url)
@@ -659,6 +659,38 @@ class YTDLPUtil(private val context: Context, private val commandTemplateDao: Co
         val crc = CRC32()
         crc.update(text.toByteArray())
         return crc.value.toString(16) // 8 hex chars max
+    }
+
+    /**
+     * The cached info json of [url], and only while loading it would still work.
+     *
+     * A cached info json is worth loading for one reason, that it saves the extraction, and it
+     * stops being worth anything the moment the media urls inside it stop being served. Those
+     * urls carry their own deadline, so the file does not have to be guessed about: it is good
+     * until they say it is not.
+     */
+    private fun getUsableInfoJsonFile(url: String): File? =
+        getInfoJsonFile(url)?.takeIf { it.hasLiveMediaUrls() }
+
+    /**
+     * Whether the media urls of an info json are still being served.
+     *
+     * Every url is stamped with the moment the host stops honouring it, and the earliest of
+     * them is when the file as a whole becomes useless. It is answered a few minutes before
+     * that, because a download that starts on a url about to expire fails just as loudly as
+     * one that started on an expired one.
+     *
+     * A file with no stamped urls in it belongs to a host that does not date them, and falls
+     * back to being trusted for as long as it is young.
+     */
+    private fun File.hasLiveMediaUrls(): Boolean {
+        val body = runCatching { readText() }.getOrNull() ?: return false
+        val expiry = MEDIA_URL_EXPIRY.findAll(body)
+            .mapNotNull { it.groupValues[1].toLongOrNull() }
+            .minOrNull()
+            ?: return System.currentTimeMillis() - lastModified() <= UNDATED_INFO_JSON_MAX_AGE
+
+        return TimeUnit.SECONDS.toMillis(expiry) - System.currentTimeMillis() > EXPIRY_MARGIN
     }
 
     /**
@@ -1082,9 +1114,8 @@ class YTDLPUtil(private val context: Context, private val commandTemplateDao: Co
 
             if (canUseWriteInfoJson && downloadItem.playlistURL.isNullOrBlank()) {
                 val infoJsonURL = downloadItem.url
-                val infoJsonFile = getInfoJsonFile(infoJsonURL)
-                //ignore info file if its older than 5 hours. puny measure to prevent expired formats in some cases
-                if (infoJsonFile != null && System.currentTimeMillis() - infoJsonFile.lastModified() <= (1000 * 60 * 60 * 5)) {
+                val infoJsonFile = getUsableInfoJsonFile(infoJsonURL)
+                if (infoJsonFile != null) {
                     request.addOption("--load-info-json", infoJsonFile.absolutePath)
                 }else {
                     ytDlRequest.addWriteInfoJson(infoJsonURL)
@@ -1647,5 +1678,16 @@ class YTDLPUtil(private val context: Context, private val commandTemplateDao: Co
         val ytdlpCache = File(FileUtil.getCacheYTDLPPath(context))
         ytDlRequest.addOption("--cache-dir", ytdlpCache.absolutePath)
         return ytDlRequest
+    }
+
+    companion object {
+        /** The deadline a host stamps into the media urls it serves, as seconds since the epoch. */
+        private val MEDIA_URL_EXPIRY = Regex("""[?&]expire=(\d{10})""")
+
+        /** Close enough to the deadline that a download would not finish starting before it. */
+        private val EXPIRY_MARGIN = TimeUnit.MINUTES.toMillis(10)
+
+        /** How long an info json is trusted when its urls carry no deadline of their own. */
+        private val UNDATED_INFO_JSON_MAX_AGE = TimeUnit.HOURS.toMillis(5)
     }
 }
