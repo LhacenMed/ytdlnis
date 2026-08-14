@@ -514,9 +514,7 @@ class YTDLPUtil(private val context: Context, private val commandTemplateDao: Co
         val formats = parseYTDLFormats(jsonArray)
         if (formats.isEmpty()) {
             runCatching {
-                getInfoJsonFile(url)?.apply {
-                    this.delete()
-                }
+                deleteInfoJson(url)
             }
         }
 
@@ -650,7 +648,7 @@ class YTDLPUtil(private val context: Context, private val commandTemplateDao: Co
 
         val infoJsonName = hash(id)
         //yt-dlp doesnt overwrite info json, so delete manually
-        File("${cachePath}/${infoJsonName}video.info.json").delete()
+        deleteInfoJson(url)
         this.addOption("--no-clean-info-json")
         this.addCommands(listOf("--print-to-file", "video:%()j", "${cachePath}/${infoJsonName}${System.currentTimeMillis()}video.info.json"))
     }
@@ -658,7 +656,9 @@ class YTDLPUtil(private val context: Context, private val commandTemplateDao: Co
     fun hash(text: String): String {
         val crc = CRC32()
         crc.update(text.toByteArray())
-        return crc.value.toString(16) // 8 hex chars max
+        //always 8 hex chars: a shorter one would be the beginning of another, and cached files
+        //are found by the name they begin with, so one item would answer for another
+        return crc.value.toString(16).padStart(8, '0')
     }
 
     /**
@@ -702,11 +702,21 @@ class YTDLPUtil(private val context: Context, private val commandTemplateDao: Co
      * one, which is the difference between a download that failed once and one that is stuck.
      */
     fun deleteInfoJson(url: String) {
-        getInfoJsonFile(url)?.delete()
+        getInfoJsonFiles(url).forEach { it.delete() }
     }
 
+    private fun getInfoJsonFile(url: String): File? = getInfoJsonFiles(url).firstOrNull()
+
+    /**
+     * Every info json cached for [url], newest first.
+     *
+     * An item is written under a new name every time it is extracted, so what a url leaves
+     * behind is a pile with only the newest entry worth reading. The whole pile is answered
+     * rather than that one file, because a pile is also what has to go: dropping the newest
+     * alone would hand the next attempt the one below it, which is older and staler still.
+     */
     @OptIn(ExperimentalStdlibApi::class)
-    private fun getInfoJsonFile(url: String): File? {
+    private fun getInfoJsonFiles(url: String): List<File> {
         val cachePath = FileUtil.getInfoJsonPath(context)
 
         var id = url
@@ -715,14 +725,11 @@ class YTDLPUtil(private val context: Context, private val commandTemplateDao: Co
         }
 
         val infoJsonName = hash(id)
-        val infoJsonFile : File? =
-            File(cachePath)
-                .walkBottomUp()
-                .sortedByDescending { it.lastModified() }
-                .filter { it.name.startsWith(infoJsonName) }
-                .firstOrNull()
-
-        return infoJsonFile
+        return File(cachePath)
+            .walkBottomUp()
+            .filter { it.name.startsWith(infoJsonName) }
+            .sortedByDescending { it.lastModified() }
+            .toList()
     }
 
     fun getFilenameTemplatePreview(item: DownloadItem, filenameTemplate: String): String {

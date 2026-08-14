@@ -269,13 +269,17 @@ class DownloadWorker(
                     runCatching { runDownload() }.recoverCatching { failure ->
                         //the cached info json was the failure, not the item: its media urls are
                         //no longer served. Dropping it and extracting again is the whole repair,
-                        //and doing it here is what keeps it from ever reaching the user
-                        val stale = STALE_INFO_JSON_ERRORS.any {
-                            failure.message?.contains(it, ignoreCase = true) == true
-                        }
+                        //and doing it here is what keeps it from ever reaching the user. Only a
+                        //run that loaded one can be repaired this way, and the command that ran
+                        //is where that is written down
+                        val stale = commandString.contains("--load-info-json") &&
+                                STALE_INFO_JSON_ERRORS.any {
+                                    failure.message?.contains(it, ignoreCase = true) == true
+                                }
                         if (!stale || isStopped || failure is RuntimeManager.CanceledException) throw failure
 
                         Log.i(TAG, "Retrying ${downloadItem.id} on a fresh extraction")
+                        FileUtil.deleteConfigFiles(request)
                         ytdlpUtil.deleteInfoJson(downloadItem.url)
                         request = ytdlpUtil.buildYTDLRequest(downloadItem)
                         runDownload()
