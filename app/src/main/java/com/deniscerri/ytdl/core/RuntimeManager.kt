@@ -51,6 +51,9 @@ object RuntimeManager {
     private var updateLatch = CountDownLatch(1)
     private val updateLock = Any()
 
+    /** How much of the output stands in for a reason when the process named none. */
+    private const val FAILURE_TAIL = 500
+
     const val BASENAME = "ytdlnis"
     const val ytdlpDirName = "yt-dlp"
     const val ytdlpBin = "yt-dlp"
@@ -336,7 +339,7 @@ object RuntimeManager {
             if (!successCodes.contains(exitCode)) {
                 // Check if process was manually killed (removed from map)
                 if (processId != null && !idProcessMap.containsKey(processId)) throw CanceledException()
-                throw ExecuteException(err)
+                throw ExecuteException(failureReason(err, out))
             }
 
             ExecuteResponse(fullCommand, exitCode, System.currentTimeMillis() - startTime, out, err)
@@ -346,6 +349,23 @@ object RuntimeManager {
         } finally {
             if (processId != null) idProcessMap.remove(processId)
         }
+    }
+
+    /**
+     * Why the process failed, in its own words.
+     *
+     * Callers that merge the error stream into the output leave nothing on stderr to read, so a
+     * failure raised from it alone would be raised blank, and everything that decides on the
+     * reason afterwards, a retry, a log, a notification, would be deciding on nothing. yt-dlp
+     * names what went wrong on its ERROR lines wherever it wrote them, and progress rewrites the
+     * same line, so those lines are looked for between carriage returns as well as newlines. The
+     * tail is what is left for a process that exits without naming anything.
+     */
+    private fun failureReason(err: String, out: String): String {
+        if (err.isNotBlank()) return err
+
+        val reported = out.split('\r', '\n').filter { it.startsWith("ERROR:") }
+        return if (reported.isNotEmpty()) reported.joinToString("\n") else out.takeLast(FAILURE_TAIL).trim()
     }
 
     @Synchronized
