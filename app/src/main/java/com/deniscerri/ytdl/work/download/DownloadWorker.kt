@@ -41,6 +41,7 @@ import com.deniscerri.ytdl.util.MusicCoverUtil
 import com.deniscerri.ytdl.util.MusicTagUtil
 import com.deniscerri.ytdl.util.NotificationUtil
 import com.deniscerri.ytdl.util.WorkerEventBus
+import com.deniscerri.ytdl.util.extractors.music.LyricsUtil
 import com.deniscerri.ytdl.util.extractors.music.MusicMetadataUtil
 import com.deniscerri.ytdl.util.extractors.ytdlp.YTDLPUtil
 import com.deniscerri.ytdl.work.isRunning
@@ -477,14 +478,35 @@ class DownloadWorker(
      */
     private suspend fun resolveMusicTags(item: DownloadItem, dataUpdate: Job): MusicMetadata? {
         if (item.type != DownloadType.audio) return null
-        item.audioPreferences.musicMetadata?.takeIf { it.isUsable }?.let { return it }
-        if (!item.audioPreferences.musicMode) return null
 
-        dataUpdate.join()
-        if (item.title.isBlank()) return null
-        return runCatching { MusicMetadataUtil.resolveForVideo(item.title, item.author) }
-            .getOrNull()
-            ?.also { item.audioPreferences.musicMetadata = it }
+        val song = item.audioPreferences.musicMetadata?.takeIf { it.isUsable } ?: run {
+            if (!item.audioPreferences.musicMode) return null
+
+            dataUpdate.join()
+            if (item.title.isBlank()) return null
+            runCatching { MusicMetadataUtil.resolveForVideo(item.title, item.author) }
+                .getOrNull() ?: return null
+        }
+
+        val resolved = withLyrics(song)
+        item.audioPreferences.musicMetadata = resolved
+        return resolved
+    }
+
+    /**
+     * Fetches the lyrics of a song that arrived here without them.
+     *
+     * The card fetches them while the user is still reading it, but not every download waits
+     * for that: the quick path resolves its song here, and a card the user downloaded from
+     * early can hand over a song whose lyrics were still on their way. Both leave the same
+     * gap, and the file is written once, so it is filled in the one place that writes it.
+     *
+     * Lyrics already on the song are left alone, whether a lookup or the user put them there.
+     */
+    private suspend fun withLyrics(song: MusicMetadata): MusicMetadata {
+        if (song.lyrics.isNotBlank()) return song
+        val lyrics = runCatching { LyricsUtil.fetch(song.artist, song.title) }.getOrNull()
+        return if (lyrics.isNullOrBlank()) song else song.copy(lyrics = lyrics)
     }
 
     companion object {
