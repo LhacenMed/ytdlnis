@@ -179,7 +179,9 @@ class DownloadWorker(
                     val writtenPath = downloadItem.format.format_note.contains("-P ")
                     val noCache = writtenPath || (!sharedPreferences.getBoolean("cache_downloads", true) && File(FileUtil.formatPath(downloadItem.downloadPath)).canWrite())
 
-                    val request = ytdlpUtil.buildYTDLRequest(downloadItem)
+                    //rebuilt when a stale cache has to be dropped, so the rest of the run always
+                    //speaks of the request the download actually ran on
+                    var request = ytdlpUtil.buildYTDLRequest(downloadItem)
 
                     // DISABLED BECAUSE YT_DLP CONSIDERS DOWNLOAD FAILURE IF -U PART FAILS, ytdlnis #1043
 //                    val updateYTDLP = sharedPreferences.getBoolean("update_ytdlp_while_downloading", false)
@@ -240,7 +242,7 @@ class DownloadWorker(
                         dao.update(downloadItem)
                     }
 
-                    runCatching {
+                    suspend fun runDownload() = run {
                         RuntimeManager.getInstance().destroyProcessById(downloadItem.id.toString())
                         RuntimeManager.getInstance().execute(
                             request = request,
@@ -262,6 +264,21 @@ class DownloadWorker(
                                 logString.append("$line\n")
                             }
                         }
+                    }
+
+                    runCatching { runDownload() }.recoverCatching { failure ->
+                        //the cached info json was the failure, not the item: its media urls are
+                        //no longer served. Dropping it and extracting again is the whole repair,
+                        //and doing it here is what keeps it from ever reaching the user
+                        val stale = STALE_INFO_JSON_ERRORS.any {
+                            failure.message?.contains(it, ignoreCase = true) == true
+                        }
+                        if (!stale || isStopped || failure is RuntimeManager.CanceledException) throw failure
+
+                        Log.i(TAG, "Retrying ${downloadItem.id} on a fresh extraction")
+                        ytdlpUtil.deleteInfoJson(downloadItem.url)
+                        request = ytdlpUtil.buildYTDLRequest(downloadItem)
+                        runDownload()
                     }.onSuccess {
                         resultRepo.updateDownloadItem(downloadItem)?.apply {
                             dao.updateWithoutUpsert(this)
