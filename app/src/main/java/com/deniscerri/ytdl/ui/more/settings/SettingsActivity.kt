@@ -25,9 +25,11 @@ import com.deniscerri.ytdl.database.viewmodel.SettingsViewModel
 import com.deniscerri.ytdl.databinding.ActivitySettingsBinding
 import com.deniscerri.ytdl.ui.BaseActivity
 import com.deniscerri.ytdl.ui.more.settings.search.SettingsSearchAdapter
+import com.deniscerri.ytdl.ui.more.settings.search.SettingsSearchHistoryAdapter
 import com.google.android.material.appbar.AppBarLayout
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -39,6 +41,7 @@ class SettingsActivity : BaseActivity(), SettingHost {
     private lateinit var settingViewModel: SettingsViewModel
     private lateinit var navController: NavController
     private lateinit var searchAdapter: SettingsSearchAdapter
+    private lateinit var searchHistoryAdapter: SettingsSearchHistoryAdapter
 
     override fun findPref(key: String): Preference? {
         return settingViewModel.settingsFlow.value.first.find { it.preference.key == key }?.preference
@@ -140,16 +143,32 @@ class SettingsActivity : BaseActivity(), SettingHost {
         binding.searchSuggestionsRecycler.adapter = searchAdapter
         binding.searchSuggestionsRecycler.itemAnimator = null
 
+        searchHistoryAdapter = SettingsSearchHistoryAdapter(
+            onQueryClick = { query -> applySearchQuery(query) },
+            onQueryRemove = { query -> settingViewModel.removeSearchQuery(query) }
+        )
+        binding.searchHistoryRecycler.layoutManager = LinearLayoutManager(context)
+        binding.searchHistoryRecycler.adapter = searchHistoryAdapter
+        binding.clearSearchHistory.setOnClickListener {
+            settingViewModel.clearSearchHistory()
+        }
+
         binding.searchView.editText.addTextChangedListener { text ->
             settingViewModel.setSearchQuery(text.toString())
         }
 
+        binding.searchView.editText.setOnEditorActionListener { _, _, _ ->
+            commitSearchQuery()
+            false
+        }
+
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                settingViewModel.settingsFlow.collectLatest { res ->
-                    val items = res.first
-                    val query = res.second
-
+                combine(
+                    settingViewModel.settingsFlow,
+                    settingViewModel.searchHistoryFlow
+                ) { res, history -> Triple(res.first, res.second, history) }
+                .collectLatest { (items, query, history) ->
                     val filtered = items.filter { item ->
                         val titleMatch = item.preference.title?.toString()?.contains(query, ignoreCase = true) == true
                         val summaryMatch = item.preference.summary?.toString()?.contains(query, ignoreCase = true) == true
@@ -162,16 +181,29 @@ class SettingsActivity : BaseActivity(), SettingHost {
                     }
 
                     searchAdapter.updateList(filtered)
+                    searchHistoryAdapter.submitList(history)
+                    binding.searchHistoryContainer.isVisible = query.isBlank() && history.isNotEmpty()
+
                     val savedSearch = intent.getStringExtra("search_query")
                     if (!savedSearch.isNullOrBlank()) {
                         binding.searchBar.performClick()
                         intent.removeExtra("search_query")
-                        settingViewModel.setSearchQuery(savedSearch)
+                        applySearchQuery(savedSearch)
                     }
                 }
             }
         }
     }
+
+    /** Puts a remembered query back into the search bar and lets the text watcher drive the results */
+    private fun applySearchQuery(query: String) {
+        binding.searchView.editText.apply {
+            setText(query)
+            setSelection(query.length)
+        }
+    }
+
+    fun commitSearchQuery() = settingViewModel.commitSearchQuery()
 
     override fun onResume() {
         refreshUI()

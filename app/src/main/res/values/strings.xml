@@ -262,6 +262,7 @@
     <string name="restore_complete">App restore complete. The following items have been restored:</string>
     <string name="select_backup_categories">Select backup categories</string>
     <string name="search_history">Search history</string>
+    <string name="clear_all">Clear all</string>
     <string name="backup_created_successfully">Backup file saved successfully</string>
     <string name="appearance">Appearance</string>
     <string name="backup_restore">Backup and restore</string>

@@ -104,6 +104,7 @@ class SettingsSearchAdapter(
         holder.itemView.alpha = if (pref.isEnabled) 1.0f else 0.5f
 
         holder.itemView.setOnLongClickListener {
+            activity.commitSearchQuery()
             val bundle = Bundle().apply {
                 putString("highlight_key", pref.key)
             }
@@ -140,6 +141,7 @@ class SettingsSearchAdapter(
                 holder.switchWidget.setOnCheckedChangeListener { _, isChecked ->
                     pref.callChangeListener(isChecked)
                     pref.isChecked = isChecked
+                    activity.commitSearchQuery()
                     activity.refreshUI()
                 }
             }
@@ -164,6 +166,7 @@ class SettingsSearchAdapter(
                             pref.value = progress
                             pref.callChangeListener(progress)
                             holder.seekbarValue.text = progress.toString()
+                            activity.commitSearchQuery()
                             activity.refreshUI()
                         }
 
@@ -183,10 +186,13 @@ class SettingsSearchAdapter(
                         val didLaunchDialog = DefaultPreferenceActions.onPreferenceDisplayDialog( activity, pref) {
                             activity.refreshUI()
                         }
-                        if (!didLaunchDialog) {
+                        if (didLaunchDialog) {
+                            activity.commitSearchQuery()
+                        } else {
                             holder.itemView.performLongClick()
                         }
                     } else {
+                        activity.commitSearchQuery()
                         pref.performClick()
                     }
                 }

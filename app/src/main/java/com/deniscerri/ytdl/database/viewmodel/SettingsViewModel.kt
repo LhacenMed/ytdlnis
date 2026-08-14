@@ -20,6 +20,7 @@ import com.deniscerri.ytdl.database.repository.HistoryRepository
 import com.deniscerri.ytdl.database.repository.ObserveSourcesRepository
 import com.deniscerri.ytdl.database.repository.SearchHistoryRepository
 import com.deniscerri.ytdl.ui.more.settings.SettingsRegistry
+import com.deniscerri.ytdl.ui.more.settings.search.SettingsSearchHistory
 import com.deniscerri.ytdl.util.BackupSettingsUtil
 import com.deniscerri.ytdl.util.FileUtil
 import com.google.gson.GsonBuilder
@@ -28,6 +29,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -51,6 +53,10 @@ class SettingsViewModel(private val application: Application) : AndroidViewModel
     val settingsFlow: StateFlow<Pair<List<SearchSettingsItem>, String>>
     private val _searchQuery = MutableStateFlow("")
 
+    private val searchHistory = SettingsSearchHistory(application)
+    private val _searchHistoryFlow = MutableStateFlow<List<String>>(emptyList())
+    val searchHistoryFlow: StateFlow<List<String>> = _searchHistoryFlow.asStateFlow()
+
     init {
         val dbManager = DBManager.getInstance(application)
         historyRepository = HistoryRepository(dbManager.historyDao)
@@ -67,6 +73,10 @@ class SettingsViewModel(private val application: Application) : AndroidViewModel
                 Pair(items, query)
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), Pair(emptyList(), ""))
+
+        viewModelScope.launch(Dispatchers.IO) {
+            _searchHistoryFlow.value = searchHistory.get()
+        }
     }
 
     fun indexSearchSettings() {
@@ -78,6 +88,28 @@ class SettingsViewModel(private val application: Application) : AndroidViewModel
 
     fun setSearchQuery(query: String) {
         _searchQuery.value = query
+    }
+
+    /** Remembers the active query, called once it actually led the user somewhere */
+    fun commitSearchQuery() {
+        val query = _searchQuery.value
+        if (query.isBlank()) return
+
+        viewModelScope.launch(Dispatchers.IO) {
+            _searchHistoryFlow.value = searchHistory.add(query)
+        }
+    }
+
+    fun removeSearchQuery(query: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _searchHistoryFlow.value = searchHistory.remove(query)
+        }
+    }
+
+    fun clearSearchHistory() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _searchHistoryFlow.value = searchHistory.clear()
+        }
     }
 
     suspend fun backup(items: List<String> = listOf()) : Result<String> {
