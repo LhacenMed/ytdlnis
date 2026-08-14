@@ -3,7 +3,6 @@ package com.deniscerri.ytdl.database.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.deniscerri.ytdl.database.models.MusicMetadata
-import com.deniscerri.ytdl.util.extractors.music.LyricsUtil
 import com.deniscerri.ytdl.util.extractors.music.MusicMetadataUtil
 import com.deniscerri.ytdl.util.extractors.music.MusicSearch
 import kotlinx.coroutines.Job
@@ -51,7 +50,6 @@ class MusicViewModel : ViewModel() {
 
     private var searchJob: Job? = null
     private var detailsJob: Job? = null
-    private var lyricsJob: Job? = null
     private var lastQuery: String? = null
 
     /**
@@ -61,20 +59,16 @@ class MusicViewModel : ViewModel() {
     private var lyricsSearch = MusicSearch(artist = "", song = "")
 
     /**
-     * The lookup a result belongs to. A completion and a lyrics fetch run alongside each other
-     * and both replace the result they were started for, so what makes one of them stale is a
-     * newer search, not the other one landing first.
+     * The lookup a result belongs to. A completion replaces the result it was started for, so
+     * what makes one stale is a newer search having landed in the meantime.
      */
     private var generation = 0
 
     /** The lookup that produced the current state, so a retry repeats exactly it. */
     private var lastSearch: (suspend () -> List<MusicMetadata>?)? = null
 
-    /** Matches already completed, so picking one back costs nothing. */
+    /** Matches already resolved, tags and lyrics both, so picking one back costs nothing. */
     private val detailed = mutableSetOf<Int>()
-
-    /** Matches whose lyrics were already fetched, for the same reason. */
-    private val lyricsFetched = mutableSetOf<Int>()
 
     /** Set once the user searches, picks or edits a result, so syncs stop overwriting it. */
     private var pinned = false
@@ -126,7 +120,6 @@ class MusicViewModel : ViewModel() {
         pin()
         _state.value = found.copy(selected = index)
         loadDetails(index)
-        loadLyrics(index)
     }
 
     /**
@@ -136,15 +129,12 @@ class MusicViewModel : ViewModel() {
     fun pin() {
         pinned = true
         detailsJob?.cancel()
-        lyricsJob?.cancel()
     }
 
     fun reset() {
         searchJob?.cancel()
         detailsJob?.cancel()
-        lyricsJob?.cancel()
         detailed.clear()
-        lyricsFetched.clear()
         generation++
         lastQuery = null
         lastSearch = null
@@ -156,9 +146,7 @@ class MusicViewModel : ViewModel() {
     private fun launchSearch(delayMillis: Long = 0, search: suspend () -> List<MusicMetadata>?) {
         searchJob?.cancel()
         detailsJob?.cancel()
-        lyricsJob?.cancel()
         detailed.clear()
-        lyricsFetched.clear()
         generation++
         lastSearch = search
         _state.value = SearchState.Loading
@@ -170,48 +158,31 @@ class MusicViewModel : ViewModel() {
                 matches.isEmpty() -> SearchState.NotFound
                 else -> SearchState.Found(matches)
             }
-            if (matches?.isNotEmpty() == true) {
-                loadDetails(0)
-                loadLyrics(0)
-            }
+            if (matches?.isNotEmpty() == true) loadDetails(0)
         }
     }
 
-    /** Replaces one match with its completed form, leaving the rest of the result list alone. */
+    /**
+     * Replaces one match with its resolved form, leaving the rest of the result list alone.
+     *
+     * The tags and the lyrics arrive together because they are one thing to the user: the song
+     * they picked, filled in. What each of them costs and where it comes from is the lookup's
+     * business, and it fetches them side by side.
+     */
     private fun loadDetails(index: Int) {
         if (index in detailed) return
         detailsJob?.cancel()
         detailsJob = viewModelScope.launch {
             val started = generation
             val found = _state.value as? SearchState.Found ?: return@launch
-            val completed = MusicMetadataUtil.details(found.matches[index])
+            val completed = MusicMetadataUtil.complete(
+                metadata = found.matches[index],
+                withLyrics = lyricsSearch.withLyrics,
+                lyricsSourceId = lyricsSearch.lyricsSourceId
+            )
 
             detailed += index
-            replaceMatch(started, index) { completed.copy(lyrics = it.lyrics) }
-        }
-    }
-
-    /**
-     * Fills in the lyrics of one match, alongside its completion rather than after it: the two
-     * ask different services and neither is worth making the other wait for.
-     *
-     * A match that already carries lyrics keeps them, which is what makes a fetch land once:
-     * they are the one tag long enough that rewriting it under the user would be noticed.
-     */
-    private fun loadLyrics(index: Int) {
-        if (!lyricsSearch.withLyrics || index in lyricsFetched) return
-        lyricsJob?.cancel()
-        lyricsJob = viewModelScope.launch {
-            val started = generation
-            val found = _state.value as? SearchState.Found ?: return@launch
-            val match = found.matches[index]
-            if (match.lyrics.isNotBlank()) return@launch
-
-            val lyrics = LyricsUtil.fetch(match.artist, match.title, lyricsSearch.lyricsSourceId)
-                ?: return@launch
-
-            lyricsFetched += index
-            replaceMatch(started, index) { it.copy(lyrics = lyrics) }
+            replaceMatch(started, index) { completed }
         }
     }
 

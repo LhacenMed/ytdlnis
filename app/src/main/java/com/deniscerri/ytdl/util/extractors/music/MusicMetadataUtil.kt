@@ -198,7 +198,36 @@ object MusicMetadataUtil {
      * a catalogue that answered with the wrong rendition.
      */
     suspend fun resolveForVideo(videoTitle: String, uploader: String): MusicMetadata? =
-        searchFromVideo(videoTitle, uploader)?.firstOrNull()?.let { details(it) }
+        searchFromVideo(videoTitle, uploader)?.firstOrNull()?.let { complete(it) }
+
+    /**
+     * Everything a matched song still needs before it can be written to a file: the tags its
+     * catalogue only exposes on a detail endpoint, and the lyrics, which come from somewhere
+     * else entirely. Both are fetched at once, so a song costs the slower of the two.
+     *
+     * This is what "resolved" means, for every caller. A search returns candidates, and a
+     * candidate becomes a song here, which is why nothing downstream has to remember to fetch
+     * a part of it: the card completes the match it shows, and a download with no card to
+     * show completes the one it matched, through the same call.
+     *
+     * Lyrics already on the song are kept as they are: a set the user wrote or corrected is
+     * never looked up again, and neither is one that already landed.
+     *
+     * @param withLyrics false leaves the lyrics alone, for a search that asked for tags only.
+     * @param lyricsSourceId narrows the lyrics to one source, null asks them all in order.
+     */
+    suspend fun complete(
+        metadata: MusicMetadata,
+        withLyrics: Boolean = true,
+        lyricsSourceId: String? = null
+    ): MusicMetadata = coroutineScope {
+        val tags = async { details(metadata) }
+        val lyrics = async {
+            if (!withLyrics || metadata.lyrics.isNotBlank()) metadata.lyrics
+            else LyricsUtil.fetch(metadata.artist, metadata.title, lyricsSourceId).orEmpty()
+        }
+        tags.await().also { it.lyrics = lyrics.await() }
+    }
 
     /**
      * One round of the lookup: every chosen catalogue is asked at the same time, so consulting
